@@ -5,19 +5,33 @@ import { trackRecommendationClicked } from '@/utils/analytics';
 import { Button } from '@/components/ui/button';
 import { useTimeAgo } from '@/hooks/useTimeAgo';
 import type { ProblemLite } from '@/types/recommendation';
+import { ratingToColor, formatRating } from '@/domain/problemRatings';
 
-function DifficultyBadge({ level }: { level: string }) {
-  const lvl = level.toLowerCase();
+function RatingBadge({
+  slug,
+  difficulty,
+  rating,
+}: {
+  slug: string;
+  difficulty: string;
+  rating?: number;
+}) {
+  const displayRating = rating ?? undefined;
+  const color =
+    displayRating !== undefined
+      ? ratingToColor(displayRating)
+      : (difficulty.toLowerCase() as 'easy' | 'medium' | 'hard');
   const classes =
-    lvl === 'easy'
+    color === 'easy'
       ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-      : lvl === 'medium'
+      : color === 'medium'
         ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
         : 'bg-rose-100 text-rose-800 hover:bg-rose-200';
-  const label = lvl.charAt(0).toUpperCase() + lvl.slice(1);
+  const label = formatRating(slug, difficulty as any);
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${classes}`}
+      title={`Difficulty: ${difficulty}`}
     >
       {label}
     </span>
@@ -47,7 +61,7 @@ export default function ProblemCards({ problems, bucket, showTags = true }: Prob
           <CardHeader className="p-4 pb-2">
             <div className="flex justify-between items-start">
               <CardTitle className="text-base">{p.title}</CardTitle>
-              <DifficultyBadge level={p.difficulty} />
+              <RatingBadge slug={p.slug} difficulty={p.difficulty} rating={p.rating} />
             </div>
           </CardHeader>
           <CardContent className="p-4 pt-0 pb-2">

@@ -92,6 +92,7 @@ export interface Problem {
   tags: Category[];
   description: string;
   difficulty: Difficulty;
+  rating?: number; // contest-based Elo rating (from zerotrac/leetcode_problem_rating)
   popularity: number; // 0.0–1.0
   isPaid: boolean; // true if problem is paid
   isFundamental: boolean; // infered from ai model
@@ -197,6 +198,7 @@ export interface Solve {
   lang: string; // e.g. "python3", "cpp", etc.
   code?: string; // full source code
   difficulty?: Difficulty; // ← optional at first, inferred from Problem DB
+  rating?: number; // contest-based Elo rating (from zerotrac/leetcode_problem_rating)
   tags?: Category[]; // ← optional at first, inferred from Problem DB
 
   /** Time used in seconds (mapped from extension's solveTime). */

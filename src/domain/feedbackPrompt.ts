@@ -254,8 +254,9 @@ export async function buildFeedbackPrompt(solve: Solve): Promise<string> {
   // Summary metadata
   headerParts.push(`\n### Problem\n- Title: ${solve.title}`);
   if (problem) {
+    const ratingStr = problem.rating ? ` (Rating: ${problem.rating})` : '';
     headerParts.push(
-      `- Difficulty: ${problem.difficulty}`,
+      `- Difficulty: ${problem.difficulty}${ratingStr}`,
       `- Tags: ${problem.tags?.join(', ') || '—'}`,
     );
   }

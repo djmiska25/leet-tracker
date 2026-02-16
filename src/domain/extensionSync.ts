@@ -85,6 +85,7 @@ export async function syncFromExtension(username: string): Promise<number> {
         code:
           existingSolve?.code ?? (raw as any).code ?? (raw as any).codeDetail?.code ?? undefined,
         difficulty: p.difficulty,
+        rating: p.rating,
         tags: existingSolve?.tags ?? p.tags,
 
         // Extension-enriched structures (all optional for backward compatibility)

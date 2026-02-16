@@ -1,14 +1,19 @@
 import { Difficulty, Solve } from '../types/types';
 import { CategoryProgress } from '../types/progress';
 import { groupSolvesBySession } from '../utils/solveGrouping';
+import { ESTIMATED_RATINGS } from './problemRatings';
 
 const DEFAULT_QUALITY_SCORE = 0.8;
 const SUGGESTED_CATEGORY_SOLVES = 20;
-const difficultyWeights: Record<Difficulty, number> = {
-  [Difficulty.Easy]: 1.0,
-  [Difficulty.Medium]: 1.2,
-  [Difficulty.Hard]: 1.5,
-};
+
+/**
+ * Difficulty weight derived from the problem's contest rating.
+ * Normalised so that a rating of ~1300 (Easy baseline) maps to 1.0
+ * and higher ratings yield proportionally more weight.
+ */
+function ratingToWeight(rating: number): number {
+  return Math.max(0.5, rating / ESTIMATED_RATINGS[Difficulty.Easy]);
+}
 
 function recencyDecay(daysAgo: number): number {
   return Math.max(0, 1 - daysAgo / 90);
@@ -46,7 +51,8 @@ export function evaluateCategoryProgress(solves: Solve[]): Omit<CategoryProgress
 
     const daysAgo = Math.floor((nowMs - latest.timestamp * 1000) / 86_400_000);
     const decay = recencyDecay(daysAgo);
-    const diffWeight = difficultyWeights[latest.difficulty ?? Difficulty.Easy]; // NOTE: fallback _should_ never happen since we fill in difficulty
+    const rating = latest.rating ?? ESTIMATED_RATINGS[latest.difficulty ?? Difficulty.Easy];
+    const diffWeight = ratingToWeight(rating);
     const attemptPenalty = getAttemptPenalty(failedAttempts);
 
     const quality =

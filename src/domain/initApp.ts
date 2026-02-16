@@ -2,6 +2,7 @@ import { db } from '../storage/db';
 import { identifyUser } from '@/utils/analytics';
 import { syncSolveData } from './syncSolveData';
 import { syncProblemCatalog } from './syncProblemCatalog';
+import { loadRatings } from './problemRatings';
 
 /**
  * Initialize the app on startup.
@@ -29,6 +30,9 @@ export async function initApp(): Promise<{
   }
 
   console.log(`[initApp] Username found: ${username}`);
+
+  // Load problem ratings data (needed before catalog sync annotates problems)
+  await loadRatings();
 
   // Start catalog sync in background (non-blocking, async)
   syncProblemCatalog().catch((err) => {

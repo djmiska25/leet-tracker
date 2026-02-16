@@ -163,6 +163,7 @@ export async function syncDemoSolves(db: {
       ...solve,
       tags: problem.tags,
       difficulty: problem.difficulty,
+      rating: problem.rating,
     };
 
     await db.saveSolve(enrichedSolve);
