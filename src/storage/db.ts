@@ -1,5 +1,12 @@
 import { openDB, DBSchema, IDBPTransaction } from 'idb';
-import { Problem, Solve, GoalProfile } from '../types/types';
+import {
+  Problem,
+  Solve,
+  GoalProfile,
+  UserRatings,
+  CalibrationState,
+  SolveSession,
+} from '../types/types';
 
 export interface LeetTrackerDB extends DBSchema {
   'leetcode-username': {
@@ -38,16 +45,28 @@ export interface LeetTrackerDB extends DBSchema {
     key: string; // preference key
     value: any; // preference value
   };
+  'user-ratings': {
+    key: string; // ${username}|ratings
+    value: UserRatings;
+  };
+  'calibration-state': {
+    key: string; // ${username}|calibration
+    value: CalibrationState;
+  };
+  'active-solve-session': {
+    key: string; // ${username}|session
+    value: SolveSession;
+  };
 }
 
 // Create a union type of all valid store names
 type ValidStoreName = keyof LeetTrackerDB;
 
 /* ----------------------------------------------------------------------------
-   DB init (version 4) + one-time migration from legacy global keys
+   DB init (version 6) + one-time migration from legacy global keys
 ---------------------------------------------------------------------------- */
 const initDb = () =>
-  openDB<LeetTrackerDB>('leet-tracker-db', 4, {
+  openDB<LeetTrackerDB>('leet-tracker-db', 6, {
     async upgrade(db, oldVersion, _newVersion, tx) {
       if (oldVersion < 1) {
         // v1 schema
@@ -167,6 +186,17 @@ const initDb = () =>
       if (oldVersion < 4) {
         // v4 – add app-prefs store for tutorial and other preferences
         db.createObjectStore('app-prefs');
+      }
+
+      if (oldVersion < 5) {
+        // v5 – add user-ratings and calibration-state stores for Elo rating system
+        db.createObjectStore('user-ratings');
+        db.createObjectStore('calibration-state');
+      }
+
+      if (oldVersion < 6) {
+        // v6 – add active-solve-session store for real-time solve tracking
+        db.createObjectStore('active-solve-session');
       }
     },
   });

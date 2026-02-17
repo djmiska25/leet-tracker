@@ -8,9 +8,9 @@ import { db } from '@/storage/db';
 /* ------------------------------------------------------------------ */
 /*  Mock useDashboard so Dashboard mounts instantly with stub refresh   */
 /* ------------------------------------------------------------------ */
-const refreshProgressMock = vi.fn().mockResolvedValue(undefined);
-const reloadProfilesMock = vi.fn().mockResolvedValue(undefined);
-const dashboardHookState = {
+const mockRefreshProgress = vi.fn().mockResolvedValue(undefined);
+const mockReloadProfiles = vi.fn().mockResolvedValue(undefined);
+const mockDashboardState = {
   loading: false,
   syncing: false,
   progress: [],
@@ -41,12 +41,14 @@ const dashboardHookState = {
     createdAt: '',
     isEditable: false,
   },
-  refreshProgress: refreshProgressMock,
-  reloadProfiles: reloadProfilesMock,
+  refreshProgress: mockRefreshProgress,
+  reloadProfiles: mockReloadProfiles,
+  ratings: { global: { rating: 1500 }, categories: {} },
+  solves: [],
 };
 
 vi.mock('@/hooks/useDashboard', () => ({
-  useDashboard: () => dashboardHookState,
+  useDashboard: () => ({ ...mockDashboardState }),
 }));
 
 /* ------------------------------------------------------------------ */
@@ -73,7 +75,7 @@ describe('Dashboard buttons', () => {
   const originalLocation = window.location;
 
   beforeEach(() => {
-    refreshProgressMock.mockClear();
+    mockRefreshProgress.mockClear();
     triggerManualSyncMock.mockClear();
     triggerManualSyncMock.mockResolvedValue(0); // Default: no new solves
 
@@ -134,7 +136,7 @@ describe('Dashboard buttons', () => {
     // triggerManualSync is called first, then refreshProgress if new solves found
     await waitFor(() => {
       expect(triggerManualSyncMock).toHaveBeenCalledTimes(1);
-      expect(refreshProgressMock).toHaveBeenCalledTimes(1);
+      expect(mockRefreshProgress).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -154,7 +156,7 @@ describe('Dashboard buttons', () => {
 
     await waitFor(() => {
       expect(setActiveProfileSpy).toHaveBeenCalledWith('alt');
-      expect(refreshProgressMock).toHaveBeenCalled();
+      expect(mockRefreshProgress).toHaveBeenCalled();
     });
   });
 });

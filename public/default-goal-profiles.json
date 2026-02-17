@@ -2,25 +2,25 @@
   {
     "id": "default",
     "name": "Default",
-    "description": "General interview focus",
+    "description": "Interview-ready proficiency",
     "createdAt": "",
     "isEditable": false,
     "goals": {
-      "Array": 0.6,
-      "String": 0.6,
-      "Hash Table": 0.6,
-      "Two Pointers": 0.6,
-      "Sliding Window": 0.6,
-      "Stack": 0.6,
-      "Queue": 0.6,
-      "Linked List": 0.6,
-      "Tree": 0.6,
-      "Graph": 0.6,
-      "Dynamic Programming": 0.6,
-      "Greedy": 0.6,
-      "Binary Search": 0.6,
-      "Math": 0.6,
-      "Recursion": 0.6
+      "Array": 1900,
+      "String": 1900,
+      "Hash Table": 1900,
+      "Two Pointers": 1900,
+      "Sliding Window": 1800,
+      "Stack": 1800,
+      "Queue": 1800,
+      "Linked List": 1800,
+      "Tree": 1900,
+      "Graph": 1900,
+      "Dynamic Programming": 1900,
+      "Greedy": 1800,
+      "Binary Search": 1800,
+      "Math": 1800,
+      "Recursion": 1800
     }
   },
   {
@@ -30,13 +30,13 @@
     "createdAt": "",
     "isEditable": true,
     "goals": {
-      "Array": 0.7,
-      "String": 0.7,
-      "Hash Table": 0.7,
-      "Greedy": 0.7,
-      "Sliding Window": 0.7,
-      "Tree": 0.6,
-      "Dynamic Programming": 0.6
+      "Array": 1700,
+      "String": 1700,
+      "Hash Table": 1700,
+      "Greedy": 1700,
+      "Sliding Window": 1700,
+      "Tree": 1500,
+      "Dynamic Programming": 1500
     }
   },
   {
@@ -46,11 +46,11 @@
     "createdAt": "",
     "isEditable": true,
     "goals": {
-      "Graph": 0.8,
-      "Dynamic Programming": 0.8,
-      "Math": 0.8,
-      "Tree": 0.7,
-      "Greedy": 0.7
+      "Graph": 1900,
+      "Dynamic Programming": 1900,
+      "Math": 1900,
+      "Tree": 1700,
+      "Greedy": 1700
     }
   }
 ]

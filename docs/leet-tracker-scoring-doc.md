@@ -20,6 +20,57 @@ This document is a technical supplement to the Leet Tracker README, providing a 
 - **Total Evidence**: The sum of all solve weights in a category. This determines confidence.
 - **Total Easy Equivalent Evidence**: The sum of all decayed weights, treating all solves as Easy-level (weight = decay × 1.0). Used to normalize estimated score.
 - **Confidence Level**: A final category-level value between 0 and 1 that represents our overall confidence in the accuracy of the estimated score, based on total evidence.
+- **Glicko-2 Rating**: A skill rating system (similar to chess Elo) that tracks per-category performance on a scale of ~800-3000+, with rating deviation (uncertainty) and volatility measures.
+- **Goal Profile**: A set of target ratings for categories (e.g., "Amazon" profile targets 1700 for Arrays, 1500 for DP), used to track interview preparation progress.
+
+---
+
+## Rating Systems Overview
+
+Leet Tracker uses **two complementary systems** to measure your progress:
+
+### 1. Progress Scores (0-1 scale)
+
+**Purpose:** Confidence-weighted mastery visualization for recommendations and progress tracking.
+
+This is the system described in detail below. It produces a 0-1 score for each category based on:
+
+- Weighted solve quality (adjusted by attempts)
+- Recency decay (90-day linear)
+- Difficulty weighting
+- Confidence level (based on evidence volume)
+
+**Use cases:**
+
+- Driving the recommendation engine (Fundamentals, Refresh, New)
+- Visualizing category mastery as a percentage
+- Identifying weak areas that need practice
+
+### 2. Glicko-2 Ratings (800-3000+ scale)
+
+**Purpose:** Skill level tracking and goal setting using a robust statistical rating system.
+
+Glicko-2 is an extension of the Elo rating system that adds:
+
+- **Rating (μ):** Mean skill estimate (default: 1500)
+- **Rating Deviation (RD):** Uncertainty in the rating (decreases with more solves, increases with inactivity)
+- **Volatility (σ):** Expected rating fluctuation
+
+**Rating ranges:**
+
+- **~800-1300:** Beginner / Easy problems
+- **~1500-1700:** Medium difficulty proficiency
+- **~1700-1900:** Medium-Hard proficiency
+- **~1900-2200:** Hard problem proficiency
+- **~2200+:** Expert level
+
+**Use cases:**
+
+- Goal profiles (e.g., "Amazon" targets 1700 for key categories)
+- Tracking skill progression over time
+- Comparing your skill level against problem difficulties
+
+**Relationship:** Progress scores help you know _what_ to practice, while ratings tell you _how skilled_ you are.
 
 ---
 

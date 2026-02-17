@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { vi, describe, it, beforeEach, afterEach, expect } from 'vitest';
@@ -544,7 +544,7 @@ describe('<SolveDetail>', () => {
       await user.click(screen.getByRole('button', { name: /import feedback/i }));
 
       const textarea = screen.getByPlaceholderText(/paste llm xml response here/i);
-      await user.type(textarea, validXML);
+      fireEvent.change(textarea, { target: { value: validXML } });
 
       await user.click(screen.getByRole('button', { name: /^import$/i }));
 
@@ -635,7 +635,7 @@ describe('<SolveDetail>', () => {
       await user.click(screen.getByRole('button', { name: /import feedback/i }));
 
       const textarea = screen.getByPlaceholderText(/paste llm xml response here/i);
-      await user.type(textarea, invalidXML);
+      fireEvent.change(textarea, { target: { value: invalidXML } });
 
       await user.click(screen.getByRole('button', { name: /^import$/i }));
 
@@ -711,7 +711,7 @@ describe('<SolveDetail>', () => {
       await user.click(screen.getByRole('button', { name: /import feedback/i }));
 
       const textarea = screen.getByPlaceholderText(/paste llm xml response here/i);
-      await user.type(textarea, xmlWithExtraSpaces);
+      fireEvent.change(textarea, { target: { value: xmlWithExtraSpaces } });
 
       await user.click(screen.getByRole('button', { name: /^import$/i }));
 
@@ -773,7 +773,7 @@ describe('<SolveDetail>', () => {
       await user.click(screen.getByRole('button', { name: /import feedback/i }));
 
       const textarea = screen.getByPlaceholderText(/paste llm xml response here/i);
-      await user.type(textarea, validXML);
+      fireEvent.change(textarea, { target: { value: validXML } });
 
       await user.click(screen.getByRole('button', { name: /^import$/i }));
 

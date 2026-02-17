@@ -3,6 +3,7 @@ import { getManifestSince, getChunk, ExtensionUnavailable } from '../api/extensi
 import type { Solve, HintType } from '../types/types';
 import { HINT_TYPES } from '../types/types';
 import { syncProblemCatalog } from './syncProblemCatalog';
+import { updateRatingsFromSolves } from './ratingSyncIntegration';
 
 export { ExtensionUnavailable };
 
@@ -27,6 +28,7 @@ export async function syncFromExtension(username: string): Promise<number> {
 
   let added = 0;
   let newestTs = lastTs;
+  const newSolves: Solve[] = []; // Track new solves for rating updates
 
   for (const m of manifest.chunks.sort((a, b) => a.index - b.index)) {
     const rawSolves = await getChunk(username, m.index);
@@ -85,6 +87,7 @@ export async function syncFromExtension(username: string): Promise<number> {
         code:
           existingSolve?.code ?? (raw as any).code ?? (raw as any).codeDetail?.code ?? undefined,
         difficulty: p.difficulty,
+        rating: p.rating,
         tags: existingSolve?.tags ?? p.tags,
 
         // Extension-enriched structures (all optional for backward compatibility)
@@ -96,11 +99,23 @@ export async function syncFromExtension(username: string): Promise<number> {
       };
 
       await db.saveSolve(solve);
+      newSolves.push(solve); // Track for rating updates
       added++;
       if (solve.timestamp > newestTs) newestTs = solve.timestamp;
     }
   }
 
   await db.setExtensionLastTimestamp(newestTs);
+
+  // Update ratings based on new solves
+  if (newSolves.length > 0) {
+    try {
+      await updateRatingsFromSolves(username, newSolves);
+    } catch (error) {
+      console.error('[extensionSync] Failed to update ratings:', error);
+      // Don't throw - rating updates are non-critical
+    }
+  }
+
   return added;
 }

@@ -4,8 +4,9 @@ import { computeDashboardProgress } from '@/domain/dashboardProgress';
 import { getActiveOrInitProfile } from '@/domain/goalProfiles';
 import { SOLVES_UPDATED_EVENT } from '@/domain/extensionPoller';
 import { db } from '@/storage/db';
+import { getRatings } from '@/storage/ratings';
 import type { CategoryProgress } from '@/types/progress';
-import type { GoalProfile } from '@/types/types';
+import type { GoalProfile, UserRatings, Solve } from '@/types/types';
 
 interface DashboardState {
   loading: boolean; // Only true during initial load
@@ -14,6 +15,8 @@ interface DashboardState {
   profile: GoalProfile | null;
   profiles: GoalProfile[]; // All available profiles
   activeProfileId: string | undefined; // ID of the active profile
+  ratings: UserRatings | null;
+  solves: Solve[];
 }
 
 /**
@@ -27,6 +30,7 @@ interface DashboardState {
  * - Loading and tracking all available profiles
  * - Tracking the active profile and passing it to computeDashboardProgress
  * - Providing profile switching functionality
+ * - Fetching solves and ratings for display
  */
 export function useDashboard() {
   const toast = useToast();
@@ -37,6 +41,8 @@ export function useDashboard() {
     profile: null,
     profiles: [],
     activeProfileId: undefined,
+    ratings: null,
+    solves: [],
   });
 
   const refreshProgress = useCallback(
@@ -52,6 +58,9 @@ export function useDashboard() {
         // Load all profiles and active profile ID
         const profiles = await db.getAllGoalProfiles();
         const activeProfileId = await db.getActiveGoalProfileId();
+        const username = await db.getUsername();
+        const solves = await db.getAllSolves();
+        const ratings = username ? await getRatings(username) : null;
 
         // Compute progress with the profile
         const progress = await computeDashboardProgress(profile);
@@ -63,10 +72,12 @@ export function useDashboard() {
           profile,
           profiles,
           activeProfileId: activeProfileId ?? profiles[0]?.id,
+          ratings,
+          solves,
         });
       } catch (err: any) {
         console.error('[useDashboard] Failed to compute progress:', err);
-        toast('Failed to update progress', 'error');
+        toast('Failed to update progress', 'error', err instanceof Error ? err.message : undefined);
         setState((prev) => ({ ...prev, loading: false, syncing: false }));
       }
     },
@@ -86,7 +97,11 @@ export function useDashboard() {
     };
 
     window.addEventListener(SOLVES_UPDATED_EVENT, handleSolvesUpdated);
-    return () => window.removeEventListener(SOLVES_UPDATED_EVENT, handleSolvesUpdated);
+    window.addEventListener('ratings-updated', handleSolvesUpdated); // Also listen for rating changes
+    return () => {
+      window.removeEventListener(SOLVES_UPDATED_EVENT, handleSolvesUpdated);
+      window.removeEventListener('ratings-updated', handleSolvesUpdated);
+    };
   }, [refreshProgress]);
 
   // Manual refresh for "Sync Now" button (shows syncing state)

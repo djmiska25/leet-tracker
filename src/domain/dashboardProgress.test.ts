@@ -15,9 +15,9 @@ describe('computeDashboardProgress', () => {
     name: 'Test Profile',
     description: 'Test',
     goals: {
-      Array: 0.6,
-      'Hash Table': 0.5,
-      'Linked List': 0.4,
+      Array: 1500,
+      'Hash Table': 1400,
+      'Linked List': 1300,
     },
     createdAt: '',
     isEditable: true,
@@ -102,9 +102,9 @@ describe('computeDashboardProgress', () => {
     const result = await computeDashboardProgress(mockProfile);
 
     const progressByTag = new Map(result.map((p) => [p.tag, p]));
-    expect(progressByTag.get('Array')?.goal).toBe(0.6);
-    expect(progressByTag.get('Hash Table')?.goal).toBe(0.5);
-    expect(progressByTag.get('Linked List')?.goal).toBe(0.4);
+    expect(progressByTag.get('Array')?.goal).toBe(1500);
+    expect(progressByTag.get('Hash Table')?.goal).toBe(1400);
+    expect(progressByTag.get('Linked List')?.goal).toBe(1300);
   });
 
   it('filters solves by category tag', async () => {

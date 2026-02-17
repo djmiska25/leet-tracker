@@ -24,6 +24,11 @@ vi.mock('@/hooks/useDashboard', () => ({
     profile: null,
     refreshProgress: vi.fn(),
     reloadProfiles: vi.fn(),
+    ratings: {
+      global: { rating: 1500, rd: 350, volatility: 0.06, lastUpdated: Date.now(), solveCount: 0 },
+      categories: {},
+    },
+    solves: [],
   }),
 }));
 

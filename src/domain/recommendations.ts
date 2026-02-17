@@ -159,6 +159,7 @@ async function getSuggestions(
       slug: p.slug,
       title: p.title,
       difficulty: p.difficulty,
+      rating: p.rating,
       popularity: p.popularity,
       isFundamental: p.isFundamental,
       tags: p.tags,

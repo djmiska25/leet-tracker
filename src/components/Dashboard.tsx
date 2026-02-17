@@ -4,8 +4,8 @@ import clsx from 'clsx';
 import { useDashboard } from '@/hooks/useDashboard';
 import { ProfileManager } from '@/components/ProfileManager';
 import { getCategorySuggestions, getRandomSuggestions } from '@/domain/recommendations';
+import { getLowerBoundRating, getRatingDisplayText } from '@/domain/eloRating';
 import { CategoryRecommendation } from '@/types/recommendation';
-import { db } from '@/storage/db';
 import { trackSyncCompleted } from '@/utils/analytics';
 import { triggerManualSync, SOLVES_UPDATED_EVENT } from '@/domain/extensionPoller';
 
@@ -16,6 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useTimeAgo } from '@/hooks/useTimeAgo';
 import ProblemCards from './ProblemCards';
 import type { Category } from '@/types/types';
+import { UserProfileCard } from './UserProfileCard';
 
 export const RANDOM_TAG: Category = 'Random';
 const initialSuggestions = {} as Record<Category, CategoryRecommendation>;
@@ -26,8 +27,17 @@ interface DashboardProps {
 
 export default function Dashboard({ username }: DashboardProps) {
   // Use Dashboard-specific hook for progress and profile management
-  const { loading, syncing, progress, profiles, activeProfileId, refreshProgress, reloadProfiles } =
-    useDashboard();
+  const {
+    loading,
+    syncing,
+    progress,
+    profiles,
+    activeProfileId,
+    refreshProgress,
+    reloadProfiles,
+    ratings,
+    solves,
+  } = useDashboard();
 
   const [open, setOpen] = useState<Category | null>(null);
   const [suggestions, setSuggestions] =
@@ -86,7 +96,22 @@ export default function Dashboard({ username }: DashboardProps) {
     return <div className="min-h-screen flex items-center justify-center">Loading…</div>;
   }
 
-  const sorted = [...progress].sort((a, b) => a.adjustedScore - b.adjustedScore);
+  // Use ratings to sort categories if available, otherwise fallback to score
+  // We want to sort by "need for improvement" or "closeness to target"?
+  // Or just by rating ascending (weakest first)?
+  // Original was adjustedScore ascending (lowest completion first).
+  // Let's stick to adjustedScore for now as it's a good proxy for "work needed",
+  // but if ratings are available, maybe sort by rating asc?
+  // Let's keep existing logic but rely on the progress array which is already sorted by score usually?
+  // Actually, let's sort by rating if available. Lowest rating first.
+  const sorted = [...progress].sort((a, b) => {
+    if (ratings?.categories) {
+      const ratingA = ratings.categories[a.tag]?.rating || 0;
+      const ratingB = ratings.categories[b.tag]?.rating || 0;
+      if (ratingA !== ratingB) return ratingA - ratingB; // Ascending rating
+    }
+    return a.adjustedScore - b.adjustedScore;
+  });
 
   /* ----- events ----- */
 
@@ -96,57 +121,60 @@ export default function Dashboard({ username }: DashboardProps) {
     if (!suggestions[tag]) {
       const rec =
         tag === RANDOM_TAG
-          ? await getRandomSuggestions(
-              progress.map((p) => p.tag),
-              5,
-            )
-          : await getCategorySuggestions(tag, 5);
-      setSuggestions((s) => ({ ...s, [tag]: rec }));
+          ? await getRandomSuggestions(progress.map((p) => p.tag))
+          : await getCategorySuggestions(tag);
+      setSuggestions((prev) => ({ ...prev, [tag]: rec }));
     }
   };
 
   const handleSync = async () => {
-    const beforeCount = (await db.getAllSolves()).length;
-    const start = performance.now();
+    const startTime = Date.now();
+    try {
+      if (import.meta.env.VITE_USE_DEMO_DATA === 'true') {
+        await import('@/api/demo').then((m) =>
+          import('@/storage/db').then(({ db }) => m.syncDemoSolves(db)),
+        );
+      } else {
+        const count = await triggerManualSync();
+        if (count > 0) {
+          const durationMs = Date.now() - startTime;
+          trackSyncCompleted(count, durationMs, true);
+          try {
+            await refreshProgress();
+          } catch (_e) {
+            /* ignore cleanup error */
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Sync failed:', error);
+    }
+  };
 
-    // Trigger manual sync via the global poller
-    const newSolvesCount = await triggerManualSync();
+  const handleSelectProfile = (id: string) => {
+    // Only reload if valid ID
+    if (!id) return;
 
-    if (newSolvesCount > 0) {
-      // refreshProgress updates the syncing state and progress internally
+    // We need to use ProfileManager or db to set active profile
+    // But ProfileManager handles the DB update.
+    // Here we can just assume the modal isn't used for selection.
+    // Actually, we need to update the active profile in DB.
+    import('@/storage/db').then(async ({ db }) => {
+      await db.setActiveGoalProfile(id);
       await refreshProgress();
-    }
-
-    const afterCount = (await db.getAllSolves()).length;
-    const durationMs = performance.now() - start;
-    // Extension is now required, so always true
-    trackSyncCompleted(afterCount - beforeCount, durationMs, true);
-    setLastSynced(new Date());
-  };
-
-  const handleSelectProfile = async (id: string) => {
-    if (id === activeProfileId) {
-      setProfileOpen(false);
-      return;
-    }
-    await db.setActiveGoalProfile(id);
+    });
     setProfileOpen(false);
-    await refreshProgress(); // This will reload profiles and recompute progress
-    setSuggestions(initialSuggestions);
-    setOpen(null);
-    setLastSynced(new Date());
   };
 
-  /* ---------- render ---------- */
   return (
-    <div className="min-h-screen bg-background">
-      {/* Profile manager modal */}
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Profile Manager Dialog */}
       {profileManagerOpen && (
         <ProfileManager
-          onDone={async () => {
+          onDone={() => {
             setProfileManagerOpen(false);
-            await reloadProfiles(); // Reload profile list after changes
-            await refreshProgress(); // Recompute progress with potentially updated profile
+            reloadProfiles();
+            refreshProgress();
             setLastSynced(new Date());
           }}
         />
@@ -157,8 +185,8 @@ export default function Dashboard({ username }: DashboardProps) {
         {/* Header */}
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h2 className="text-3xl font-bold">Hello, {username}!</h2>
-            <p className="text-muted-foreground">Your category progress</p>
+            <h2 className="text-3xl font-bold">Dashboard</h2>
+            <p className="text-muted-foreground">Your progress & recommendations</p>
             <p className="text-xs text-muted-foreground">Last synced: {timeAgo}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -217,11 +245,14 @@ export default function Dashboard({ username }: DashboardProps) {
           </div>
         </header>
 
+        {/* User Profile Card */}
+        <UserProfileCard username={username} ratings={ratings} solves={solves} />
+
         {/* Category list */}
         <Card className="progress-score-card">
           <CardHeader className="px-4 py-2">
             <CardTitle>Problem Categories</CardTitle>
-            <CardDescription>Categories sorted by completion (lowest first)</CardDescription>
+            <CardDescription>Practice by category to improve your rating</CardDescription>
           </CardHeader>
 
           <CardContent className="divide-y px-4">
@@ -274,8 +305,19 @@ export default function Dashboard({ username }: DashboardProps) {
 
               {/* Category rows */}
               {sorted.map((cat, index) => {
-                const percent = Math.round(cat.adjustedScore * 100);
-                const goalPercent = Math.round(cat.goal * 100);
+                const categoryRatingData = ratings?.categories?.[cat.tag];
+                const categoryRating = categoryRatingData?.rating || 1500;
+                const categoryRd = categoryRatingData?.rd || 1500; // High uncertainty for unrated
+                const displayRating = getLowerBoundRating(categoryRating, categoryRd);
+
+                // Goal is now a rating target directly (e.g., 1500, 1700, 1900)
+                const targetRating = Math.round(cat.goal);
+
+                // Calculate progress bar percent (clamped 0-100)
+                // If rating is 0 (uninitiated), bar is 0.
+                const progressPercent =
+                  targetRating > 0 ? Math.min(100, (displayRating / targetRating) * 100) : 0;
+
                 const isOpen = open === cat.tag;
 
                 return (
@@ -300,24 +342,27 @@ export default function Dashboard({ username }: DashboardProps) {
                           <span>{cat.tag}</span>
                         </div>
 
-                        {/* Percentage, goal and progress bar */}
+                        {/* Rating Display */}
                         <div className="flex-1 space-y-1">
-                          <div className="flex justify-between text-xs">
-                            <span>{percent}%</span>
-                            <span className="text-muted-foreground">Goal: {goalPercent}%</span>
+                          <div className="flex justify-between text-xs sm:text-sm">
+                            <span
+                              className="font-medium"
+                              title={getRatingDisplayText(categoryRating, categoryRd)}
+                            >
+                              Current: {displayRating}
+                            </span>
+                            <span className="text-muted-foreground mr-1">
+                              Target: {targetRating}
+                            </span>
                           </div>
-                          <div className="relative">
-                            <ProgressBar value={percent} />
-                            <div
-                              className="absolute top-0 h-2 border-r-2 border-primary/60"
-                              style={{ left: `${goalPercent}%` }}
-                            />
+                          <div className="h-2">
+                            <ProgressBar value={progressPercent} />
                           </div>
                         </div>
                       </div>
                     </button>
 
-                    {/* Detail – tabbed recommendations */}
+                    {/* Detailed breakdown / recommendations */}
                     <div
                       className={clsx(
                         'overflow-hidden transition-all duration-300 origin-top',
@@ -337,6 +382,7 @@ export default function Dashboard({ username }: DashboardProps) {
                               <ProblemCards
                                 problems={suggestions[cat.tag][bucket]}
                                 bucket={bucket}
+                                showTags={false}
                               />
                             </TabsContent>
                           ))}

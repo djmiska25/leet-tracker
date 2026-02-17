@@ -19,7 +19,7 @@ const dashboardHookState = {
   progress: [
     {
       tag: 'Array',
-      goal: 0.5,
+      goal: 1400,
       estimatedScore: 0.4,
       confidenceLevel: 0.4,
       adjustedScore: 0.16,
@@ -32,6 +32,11 @@ const dashboardHookState = {
   profile: null,
   refreshProgress: refreshProgressMock,
   reloadProfiles: reloadProfilesMock,
+  ratings: {
+    global: { rating: 1500, rd: 350, volatility: 0.06, lastUpdated: Date.now(), solveCount: 0 },
+    categories: {},
+  },
+  solves: [],
 };
 
 vi.mock('@/hooks/useDashboard', () => ({
@@ -94,7 +99,7 @@ describe('Dashboard \u2013 Random category', () => {
     await user.click(randomBtn);
 
     await waitFor(() => {
-      expect(getRandomSuggestions).toHaveBeenCalledWith(['Array'], 5);
+      expect(getRandomSuggestions).toHaveBeenCalledWith(['Array']);
     });
 
     const cardTitle = await screen.findByText('Random One');

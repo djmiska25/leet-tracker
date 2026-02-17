@@ -9,11 +9,16 @@ import type { CategoryProgress } from '@/types/progress';
 
 vi.mock('@/domain/dashboardProgress');
 vi.mock('@/domain/goalProfiles');
+vi.mock('@/storage/ratings', () => ({
+  getRatings: vi.fn().mockResolvedValue({ global: { rating: 1500 }, categories: {} }),
+}));
 vi.mock('@/storage/db', () => ({
   db: {
     getAllGoalProfiles: vi.fn(),
     getActiveGoalProfileId: vi.fn(),
     setActiveGoalProfile: vi.fn(),
+    getUsername: vi.fn(),
+    getAllSolves: vi.fn(),
   },
 }));
 
@@ -27,7 +32,7 @@ describe('useDashboard', () => {
     id: 'test-profile',
     name: 'Test Profile',
     description: '',
-    goals: { Array: 0.6 },
+    goals: { Array: 1500 },
     createdAt: '',
     isEditable: true,
   };
@@ -38,7 +43,7 @@ describe('useDashboard', () => {
       id: 'another-profile',
       name: 'Another Profile',
       description: '',
-      goals: { String: 0.7 },
+      goals: { String: 1700 },
       createdAt: '',
       isEditable: true,
     },
@@ -47,7 +52,7 @@ describe('useDashboard', () => {
   const mockProgress: CategoryProgress[] = [
     {
       tag: 'Array',
-      goal: 0.6,
+      goal: 1500,
       estimatedScore: 0.5,
       confidenceLevel: 0.8,
       adjustedScore: 0.4,
@@ -110,7 +115,7 @@ describe('useDashboard', () => {
     const newProgress: CategoryProgress[] = [
       {
         tag: 'Array',
-        goal: 0.6,
+        goal: 1500,
         estimatedScore: 0.7,
         confidenceLevel: 0.9,
         adjustedScore: 0.63,
@@ -173,7 +178,7 @@ describe('useDashboard', () => {
     const newProgress: CategoryProgress[] = [
       {
         tag: 'Array',
-        goal: 0.6,
+        goal: 1500,
         estimatedScore: 0.8,
         confidenceLevel: 0.85,
         adjustedScore: 0.68,
@@ -217,7 +222,7 @@ describe('useDashboard', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(mockToast).toHaveBeenCalledWith('Failed to update progress', 'error');
+    expect(mockToast).toHaveBeenCalledWith('Failed to update progress', 'error', 'DB error');
     expect(result.current.progress).toEqual([]);
   });
 
@@ -232,7 +237,7 @@ describe('useDashboard', () => {
       await result.current.refreshProgress();
     });
 
-    expect(mockToast).toHaveBeenCalledWith('Failed to update progress', 'error');
+    expect(mockToast).toHaveBeenCalledWith('Failed to update progress', 'error', 'Compute error');
     expect(result.current.syncing).toBe(false);
     expect(result.current.loading).toBe(false);
   });
@@ -275,7 +280,7 @@ describe('useDashboard', () => {
       id: 'new-profile',
       name: 'New Profile',
       description: '',
-      goals: { 'Hash Table': 0.5 },
+      goals: { 'Hash Table': 1400 },
       createdAt: '',
       isEditable: true,
     };
@@ -307,7 +312,7 @@ describe('useDashboard', () => {
         id: 'third-profile',
         name: 'Third Profile',
         description: '',
-        goals: { Tree: 0.8 },
+        goals: { Tree: 1900 },
         createdAt: '',
         isEditable: true,
       },

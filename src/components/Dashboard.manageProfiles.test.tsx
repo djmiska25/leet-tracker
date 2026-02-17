@@ -29,6 +29,11 @@ const dashboardHookState = {
   profile: null,
   refreshProgress: refreshProgressMock,
   reloadProfiles: reloadProfilesMock,
+  ratings: {
+    global: { rating: 1500, rd: 350, volatility: 0.06, lastUpdated: Date.now(), solveCount: 0 },
+    categories: {},
+  },
+  solves: [],
 };
 
 vi.mock('@/hooks/useDashboard', () => ({

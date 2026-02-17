@@ -1,5 +1,6 @@
 import { db } from '@/storage/db';
 import { fetchProblemCatalog } from '@/api/leetcode';
+import { loadRatings } from './problemRatings';
 
 const PROBLEM_CATALOG_URL = import.meta.env.VITE_PROBLEM_CATALOG_URL;
 
@@ -48,6 +49,8 @@ export async function syncProblemCatalog(): Promise<void> {
       const lastUpdated = await db.getProblemListLastUpdated();
 
       if (isStale(lastUpdated, 24 * 60)) {
+        // Ensure ratings are loaded before fetching catalog (they annotate problems)
+        await loadRatings();
         console.log('[syncProblemCatalog] Fetching latest problem catalog...');
         const remoteProblems = await fetchProblemCatalog(PROBLEM_CATALOG_URL);
         const newProblems = remoteProblems.filter(

@@ -4,7 +4,7 @@ export interface ProblemLite {
   slug: string;
   title: string;
   difficulty: Difficulty;
-  popularity: number; // 0‑1 normalised
+  rating?: number; // contest-based Elo rating  popularity: number; // 0‑1 normalised
   isFundamental: boolean;
   /** Unix timestamp (seconds) of most recent accepted solve – present only for "refresh” bucket */
   lastSolved?: number;

@@ -7,6 +7,7 @@ import SolveHistory from '@/components/solveHistory/SolveHistory';
 import HeaderNav from '@/components/HeaderNav';
 import TutorialPrompt from '@/components/TutorialPrompt';
 import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
+import { SolveSessionTracker } from '@/components/SolveSessionTracker';
 import { useTutorial } from '@/tutorial/TutorialContext';
 import { buildSteps } from '@/tutorial/steps';
 import { db } from '@/storage/db';
@@ -242,6 +243,9 @@ function App() {
       <div style={{ display: isHistory ? 'block' : 'none' }}>
         <SolveHistory activeSolveId={solveId} />
       </div>
+
+      {/* Active solve session tracker - fixed position overlay */}
+      <SolveSessionTracker />
 
       {/* Keep Routes for URL side-effects or future dedicated routes, but main views are handled above */}
       <Routes>

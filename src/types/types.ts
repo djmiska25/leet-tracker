@@ -92,6 +92,7 @@ export interface Problem {
   tags: Category[];
   description: string;
   difficulty: Difficulty;
+  rating?: number; // contest-based Elo rating (from zerotrac/leetcode_problem_rating)
   popularity: number; // 0.0–1.0
   isPaid: boolean; // true if problem is paid
   isFundamental: boolean; // infered from ai model
@@ -197,6 +198,7 @@ export interface Solve {
   lang: string; // e.g. "python3", "cpp", etc.
   code?: string; // full source code
   difficulty?: Difficulty; // ← optional at first, inferred from Problem DB
+  rating?: number; // contest-based Elo rating (from zerotrac/leetcode_problem_rating)
   tags?: Category[]; // ← optional at first, inferred from Problem DB
 
   /** Time used in seconds (mapped from extension's solveTime). */
@@ -249,13 +251,135 @@ export interface CategoryScore {
   adjustedScore: number; // confidence-weighted score [0.0–1.0]
 }
 
+/**
+ * Map of category names to target Glicko-2 ratings.
+ * Ratings typically range from ~800 (beginner) to ~3000+ (expert).
+ * Common targets:
+ * - 1500: Medium difficulty proficiency (default starting rating)
+ * - 1700: Medium-Hard proficiency
+ * - 1900: Hard problem proficiency
+ */
 export type GoalMap = Partial<Record<Category, number>>;
+
+/**
+ * A goal profile defines target skill ratings for categories.
+ * Used to track progress toward specific interview preparation goals
+ * (e.g., Amazon, Google) or custom learning objectives.
+ */
 export interface GoalProfile {
   id: string; // Unique identifier
   name: string; // User-visible name (e.g. "My Custom Goals")
   username?: string; // Optional: added in v3 db migration, used for indexing
   description?: string; // Optional details
-  goals: GoalMap; // Goals by category
+  goals: GoalMap; // Target Glicko-2 ratings by category (e.g., {"Array": 1700, "DP": 1900})
   createdAt: string; // epoch time in milliseconds
   isEditable: boolean; // If false, profile is locked(default profile)
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            User Rating (Elo/Glicko-2)                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Represents a user's skill rating using the Glicko-2 system.
+ * Glicko-2 extends Elo by adding rating deviation (uncertainty) and volatility.
+ */
+export interface UserRating {
+  /** Glicko-2 rating (mean skill estimate, similar to Elo). Default: 1500 */
+  rating: number;
+
+  /** Rating Deviation (RD) - measures uncertainty in the rating. Lower = more certain.
+   * Default: 350 (new/uncertain), converges toward ~50-150 with activity.
+   * Increases over time due to inactivity (time decay). */
+  rd: number;
+
+  /** Volatility - measures expected rating fluctuation. Default: 0.06 */
+  volatility: number;
+
+  /** Timestamp of last rating update (epoch milliseconds).
+   * Used for time decay: RD increases based on inactivity periods. */
+  lastUpdated: number;
+
+  /** Number of solves that contributed to this rating */
+  solveCount: number;
+}
+
+/**
+ * Container for all user ratings (global + per-category)
+ */
+export interface UserRatings {
+  /** Overall rating across all problem types */
+  global: UserRating;
+
+  /** Per-category ratings (e.g., "Array": {...}, "Dynamic Programming": {...}) */
+  categories: Partial<Record<Category, UserRating>>;
+}
+
+/**
+ * State for an in-progress calibration session
+ */
+export interface CalibrationState {
+  /** Username being calibrated */
+  username: string;
+
+  /** Timestamp when calibration started */
+  startedAt: number;
+
+  /** List of completed calibration attempts */
+  attempts: TimedSolveAttempt[];
+
+  /** Current temporary rating (updated after each attempt) */
+  currentRating: UserRating;
+
+  /** Whether calibration is complete */
+  isComplete: boolean;
+}
+
+/**
+ * A single timed problem attempt during calibration
+ */
+export interface TimedSolveAttempt {
+  /** Problem slug */
+  slug: string;
+
+  /** Problem title */
+  title: string;
+
+  /** Problem rating (from contest Elo) */
+  problemRating: number;
+
+  /** Primary category/tag */
+  category: Category;
+
+  /** Time limit assigned (in seconds) */
+  timeLimit: number;
+
+  /** Actual time used (in seconds) */
+  timeUsed: number;
+
+  /** Whether user completed the problem (self-reported during calibration) */
+  completed: boolean;
+
+  /** Timestamp of attempt */
+  timestamp: number;
+}
+
+/**
+ * Active solve session tracking for real-time rating updates
+ */
+export interface SolveSession {
+  /** Problem being solved */
+  problem: Problem;
+
+  /** Time limit for this problem (in seconds) */
+  timeLimit: number;
+
+  /** Timestamp when session started (epoch milliseconds) */
+  startedAt: number;
+
+  /** Username of the solver */
+  username: string;
+
+  /** Whether the session is still active */
+  isActive: boolean;
 }

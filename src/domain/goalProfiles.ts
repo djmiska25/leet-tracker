@@ -22,13 +22,13 @@ export async function fetchDefaultProfiles(): Promise<GoalProfile[]> {
       {
         id: 'default',
         name: 'Default',
-        description: 'Fallback profile',
+        description: 'Interview-ready fallback',
         createdAt: new Date().toISOString(),
         isEditable: false,
         goals: {
-          Array: 0.6,
-          String: 0.6,
-          'Hash Table': 0.6,
+          Array: 1900,
+          String: 1900,
+          'Hash Table': 1900,
         },
       },
     ];

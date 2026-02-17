@@ -15,7 +15,8 @@ LeetCode and other platforms are great for improving algorithm skills and learni
 
 - ✅ **Category-level scoring** with recency decay
 - 🎯 **Goal profiles** (e.g. Amazon, Google, Custom)
-- 📊 **Smart problem recommendations** (Fundamental, Refresh, New)
+- � **Glicko-2 rating system** tracks skill progression per category (800-3000+ scale)
+- �📊 **Smart problem recommendations** (Fundamental, Refresh, New)
 - 🔁 **Re-attempt logic** with diminishing returns
 - 🔐 **Fully local-first** (data stored in IndexedDB)
 - 🌙 **Dark mode** supported
@@ -59,9 +60,13 @@ Every submission appears in **Solve History** with rich details:
 
 The feedback is validated client-side (range-checking 0-5 / 0-100) and immediately affects your category scores.
 
-### Scoring Algorithm
+### Dual Rating System
 
-Each category gets a confidence-weighted score:
+Leet Tracker uses two complementary systems to track your progress:
+
+#### 1. **Progress Scores (0-1)** - Confidence-weighted mastery visualization
+
+Each category gets a confidence-weighted score for visual progress tracking:
 
 ```ts
 estimatedScore = avg(quality * decay * difficultyWeight);
@@ -69,12 +74,35 @@ confidenceLevel = min(1.0, evidencePoints / 20);
 adjustedScore = estimatedScore * confidenceLevel;
 ```
 
-- **Decay:** Older solves contribute less (90-day half-life)
+- **Decay:** Older solves contribute less (90-day linear decay)
 - **Difficulty weighting:** Easy < Medium < Hard
-- **Attempt Penalty:** Diminishes score if multiple failed attempts before success.
-- **Quality: Manually entered or GPT Calculated (Planned factor)**
-- **Confidence:** Measures how much relevant recent evidence you have in a category. Maxes out at ~20 weighted solves.
-- **Grouped Attempts:** Multiple attempts on the same problem are grouped into "sessions" (defined by a 4-hour inactivity gap).
+- **Attempt Penalty:** Diminishes score if multiple failed attempts before success
+- **Quality:** Manually entered or GPT calculated (planned factor)
+- **Confidence:** Measures how much relevant recent evidence you have in a category. Maxes out at ~20 weighted solves
+- **Grouped Attempts:** Multiple attempts on the same problem are grouped into "sessions" (defined by a 4-hour inactivity gap)
+
+#### 2. **Glicko-2 Ratings (800-3000+)** - Skill level tracking
+
+Per-category ratings track your problem-solving skill using the Glicko-2 algorithm:
+
+- **Rating:** Mean skill estimate (default starting: 1500)
+- **Rating Deviation (RD):** Uncertainty in your rating (lower = more certain)
+- **Volatility:** Expected rating fluctuation over time
+- **Time decay:** RD increases with inactivity, reflecting skill rust
+
+**Rating ranges:**
+
+- **~800-1300:** Beginner / Easy problems
+- **~1500-1700:** Medium difficulty proficiency
+- **~1700-1900:** Medium-Hard proficiency
+- **~1900-2200:** Hard problem proficiency
+- **~2200+:** Expert level
+
+**Goal profiles** use rating targets to track interview preparation:
+
+- **Default (1800-1900):** Interview-ready proficiency with high success rate on most problems
+- **Amazon (1500-1700):** OA and screening-focused preparation
+- **Google (1700-1900):** Advanced algorithm-heavy interview preparation
 
 You can read more about the scoring algorithm in the [Scoring Algorithm Deep Dive](docs/leet-tracker-scoring-doc.md).
 

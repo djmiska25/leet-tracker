@@ -36,7 +36,8 @@ export function useSolveHistory() {
   // Listen for updates from the global poller (managed by App.tsx)
   useEffect(() => {
     const handleSolvesUpdated = async (event: Event) => {
-      const newSolvesCount = (event as CustomEvent<{ count: number }>).detail.count;
+      const customEvent = event as CustomEvent<{ count: number }>;
+      const newSolvesCount = customEvent.detail?.count ?? 1;
       console.log(`[useSolveHistory] ${newSolvesCount} new solves detected, refreshing solve list`);
       await load(); // Refresh without setting loading state (silent refresh)
     };
