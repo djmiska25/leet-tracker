@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import { openDB } from 'idb';
 import {
   db,
   markAiFeedbackUsed,
@@ -128,6 +129,56 @@ describe('db storage module', () => {
     await db.setProblemListLastUpdated(1746308137);
     const timestamp = await db.getProblemListLastUpdated();
     expect(timestamp).toBe(1746308137);
+  });
+
+  it('migrates difficulty casing from v4 to v5', async () => {
+    const username = 'testuser';
+
+    const legacyDb = await openDB('leet-tracker-db', 4, {
+      upgrade(dbInstance) {
+        dbInstance.createObjectStore('leetcode-username');
+        dbInstance.createObjectStore('problem-list');
+        dbInstance.createObjectStore('problem-metadata');
+        const solvesStore = dbInstance.createObjectStore('solves');
+        if (!solvesStore.indexNames.contains('username')) {
+          solvesStore.createIndex('username', 'username');
+        }
+        dbInstance.createObjectStore('solves-metadata');
+        const goalProfilesStore = dbInstance.createObjectStore('goal-profiles');
+        if (!goalProfilesStore.indexNames.contains('username')) {
+          goalProfilesStore.createIndex('username', 'username');
+        }
+        dbInstance.createObjectStore('active-goal-profile');
+        dbInstance.createObjectStore('extension-sync');
+        dbInstance.createObjectStore('app-prefs');
+      },
+    });
+
+    await legacyDb.put('leetcode-username', username, 'username');
+    const legacyProblem = {
+      ...exampleProblem,
+      difficulty: 'Easy',
+    } as unknown as Problem;
+    const legacySolve = {
+      ...exampleSolve,
+      username,
+      difficulty: 'Medium',
+    } as unknown as Solve;
+
+    await legacyDb.put('problem-list', legacyProblem, 'p1');
+    await legacyDb.put(
+      'solves',
+      legacySolve,
+      `${username}|${exampleSolve.slug}|${exampleSolve.timestamp}`,
+    );
+    legacyDb.close();
+
+    await db.setUsername(username);
+    const problems = await db.getAllProblems();
+    const solves = await db.getAllSolves();
+
+    expect(problems[0]?.difficulty).toBe(Difficulty.Easy);
+    expect(solves[0]?.difficulty).toBe(Difficulty.Medium);
   });
 
   describe('username caching', () => {

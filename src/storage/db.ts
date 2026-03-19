@@ -174,12 +174,12 @@ const initDb = () =>
         // v5 – normalize difficulty casing on problems + solves
         const problemStore = tx.objectStore('problem-list');
         const problemKeys = (await problemStore.getAllKeys()) as string[];
-        const problems = (await problemStore.getAll()) as Problem[];
-        for (let i = 0; i < problems.length; i++) {
-          const problem = problems[i];
+        for (const key of problemKeys) {
+          const problem = (await problemStore.get(key as any)) as Problem | undefined;
+          if (!problem) continue;
           const normalized = normalizeDifficulty(problem.difficulty);
-          if (normalized && problem.difficulty !== normalized) {
-            await problemStore.put({ ...problem, difficulty: normalized }, problemKeys[i] as any);
+          if (problem.difficulty !== normalized) {
+            await problemStore.put({ ...problem, difficulty: normalized }, key as any);
           }
         }
 
@@ -189,7 +189,7 @@ const initDb = () =>
           const solve = (await solvesStore.get(key as any)) as Solve | undefined;
           if (!solve) continue;
           const normalized = normalizeDifficulty(solve.difficulty);
-          if (normalized && solve.difficulty !== normalized) {
+          if (solve.difficulty !== normalized) {
             await solvesStore.put({ ...solve, difficulty: normalized }, key as any);
           }
         }
