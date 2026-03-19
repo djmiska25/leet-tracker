@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { buildFeedbackPrompt } from '@/domain/feedbackPrompt';
 import { db } from '@/storage/db';
-import type { Solve, Difficulty, Category } from '@/types/types';
+import { Solve, Difficulty, Category } from '@/types/types';
 
 // Mock storage db
 vi.mock('@/storage/db');
@@ -27,7 +27,7 @@ describe('buildFeedbackPrompt', () => {
       tags: ['Array'] as Category[],
       description:
         'Given an array of integers, return indices of the two numbers that add up to a specific target.',
-      difficulty: 'Easy' as Difficulty,
+      difficulty: Difficulty.Easy,
       popularity: 0.95,
       isPaid: false,
       isFundamental: true,

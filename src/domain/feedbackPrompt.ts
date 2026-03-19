@@ -9,6 +9,7 @@ import type {
   Problem,
 } from '@/types/types';
 import { reconstructWithCache, type ReconCache } from './timelineProcessing';
+import { formatDifficultyLabel } from '@/utils/difficulty';
 
 /**
  * Max tokens for the prompt. Configurable via env, default 32768.
@@ -255,7 +256,7 @@ export async function buildFeedbackPrompt(solve: Solve): Promise<string> {
   headerParts.push(`\n### Problem\n- Title: ${solve.title}`);
   if (problem) {
     headerParts.push(
-      `- Difficulty: ${problem.difficulty}`,
+      `- Difficulty: ${formatDifficultyLabel(problem.difficulty)}`,
       `- Tags: ${problem.tags?.join(', ') || '—'}`,
     );
   }

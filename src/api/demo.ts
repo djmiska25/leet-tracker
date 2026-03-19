@@ -1,4 +1,5 @@
 import { Solve, Problem } from '@/types/types';
+import { normalizeDifficulty } from '../utils/difficulty';
 
 /**
  * Adjusts demo solve timestamps to fit within the previous two-week period.
@@ -162,7 +163,7 @@ export async function syncDemoSolves(db: {
     const enrichedSolve = {
       ...solve,
       tags: problem.tags,
-      difficulty: problem.difficulty,
+      difficulty: normalizeDifficulty(problem.difficulty) ?? problem.difficulty,
     };
 
     await db.saveSolve(enrichedSolve);

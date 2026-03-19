@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { loadDemoSolves, syncDemoSolves } from './demo';
-import type { Solve, Problem, Difficulty } from '@/types/types';
+import { Solve, Problem, Difficulty } from '@/types/types';
 
 const exampleSolves = [
   { slug: 'one', title: 'One', timestamp: 1_600_000_000, status: 'Accepted', lang: 'ts' },
@@ -172,7 +172,7 @@ describe('syncDemoSolves', () => {
       getProblem: vi.fn().mockResolvedValue({
         slug: 'test',
         tags: ['Array', 'Hash Table'],
-        difficulty: 'Medium' as Difficulty,
+        difficulty: Difficulty.Medium,
       }),
       saveSolve: vi.fn().mockResolvedValue('key'),
       clearSolves: vi.fn().mockResolvedValue(undefined),
@@ -220,7 +220,7 @@ describe('syncDemoSolves', () => {
       getProblem: vi.fn().mockResolvedValue({
         slug: 'test',
         tags: ['Array'],
-        difficulty: 'Easy' as Difficulty,
+        difficulty: Difficulty.Easy,
       }),
       saveSolve: vi.fn().mockResolvedValue('key'),
       clearSolves: vi.fn().mockResolvedValue(undefined),
@@ -241,7 +241,7 @@ describe('syncDemoSolves', () => {
       slug: 'one',
       title: 'Problem One',
       tags: ['Array', 'Dynamic Programming'],
-      difficulty: 'Hard' as Difficulty,
+      difficulty: Difficulty.Hard,
       description: 'Test problem',
       popularity: 0.8,
       isPaid: false,

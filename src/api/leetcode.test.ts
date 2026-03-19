@@ -1,5 +1,6 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mapTagsToCategories, fetchProblemCatalog, verifyUser } from './leetcode';
+import { Difficulty } from '@/types/types';
 
 /* ------------------------------------------------------------------ */
 /*  mapTagsToCategories                                                */
@@ -46,7 +47,7 @@ describe('fetchProblemCatalog', () => {
         isPaidOnly: false,
         isFundamental: true,
         popularity: 0.9,
-        difficulty: 'Easy',
+        difficulty: Difficulty.Easy,
         topicTags: ['Array', 'Hash Table'],
         likes: 54_000,
         dislikes: 2000,
@@ -70,7 +71,7 @@ describe('fetchProblemCatalog', () => {
         isFundamental: true,
         isPaid: false,
         popularity: 0.9,
-        difficulty: 'Easy',
+        difficulty: Difficulty.Easy,
         description: '<p>desc</p>',
         tags: ['Array', 'Hash Table'],
         createdAt: 1746308137,

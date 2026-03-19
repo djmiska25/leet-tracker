@@ -1,9 +1,9 @@
 /* eslint-disable no-unused-vars */
 // Possible difficulties
 export enum Difficulty {
-  Easy = 'Easy',
-  Medium = 'Medium',
-  Hard = 'Hard',
+  Easy = 'EASY',
+  Medium = 'MEDIUM',
+  Hard = 'HARD',
 }
 
 export const allCategories = [

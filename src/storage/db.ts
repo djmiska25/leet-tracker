@@ -1,5 +1,6 @@
 import { openDB, DBSchema, IDBPTransaction } from 'idb';
 import { Problem, Solve, GoalProfile } from '../types/types';
+import { normalizeDifficulty } from '../utils/difficulty';
 
 export interface LeetTrackerDB extends DBSchema {
   'leetcode-username': {
@@ -44,10 +45,10 @@ export interface LeetTrackerDB extends DBSchema {
 type ValidStoreName = keyof LeetTrackerDB;
 
 /* ----------------------------------------------------------------------------
-   DB init (version 4) + one-time migration from legacy global keys
+  DB init (version 5) + one-time migration from legacy global keys
 ---------------------------------------------------------------------------- */
 const initDb = () =>
-  openDB<LeetTrackerDB>('leet-tracker-db', 4, {
+  openDB<LeetTrackerDB>('leet-tracker-db', 5, {
     async upgrade(db, oldVersion, _newVersion, tx) {
       if (oldVersion < 1) {
         // v1 schema
@@ -167,6 +168,31 @@ const initDb = () =>
       if (oldVersion < 4) {
         // v4 – add app-prefs store for tutorial and other preferences
         db.createObjectStore('app-prefs');
+      }
+
+      if (oldVersion < 5) {
+        // v5 – normalize difficulty casing on problems + solves
+        const problemStore = tx.objectStore('problem-list');
+        const problemKeys = (await problemStore.getAllKeys()) as string[];
+        const problems = (await problemStore.getAll()) as Problem[];
+        for (let i = 0; i < problems.length; i++) {
+          const problem = problems[i];
+          const normalized = normalizeDifficulty(problem.difficulty);
+          if (normalized && problem.difficulty !== normalized) {
+            await problemStore.put({ ...problem, difficulty: normalized }, problemKeys[i] as any);
+          }
+        }
+
+        const solvesStore = tx.objectStore('solves');
+        const solveKeys = (await solvesStore.getAllKeys()) as string[];
+        for (const key of solveKeys) {
+          const solve = (await solvesStore.get(key as any)) as Solve | undefined;
+          if (!solve) continue;
+          const normalized = normalizeDifficulty(solve.difficulty);
+          if (normalized && solve.difficulty !== normalized) {
+            await solvesStore.put({ ...solve, difficulty: normalized }, key as any);
+          }
+        }
       }
     },
   });

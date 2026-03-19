@@ -3,7 +3,7 @@ import { computeDashboardProgress } from './dashboardProgress';
 import { db } from '@/storage/db';
 import { evaluateCategoryProgress } from './progress';
 import { clearCache, primeData, setSolves } from './recommendations';
-import type { GoalProfile, Solve, Difficulty } from '@/types/types';
+import { GoalProfile, Solve, Difficulty } from '@/types/types';
 
 vi.mock('@/storage/db');
 vi.mock('./progress');
@@ -30,7 +30,7 @@ describe('computeDashboardProgress', () => {
       timestamp: Date.now() / 1000,
       status: 'Accepted',
       lang: 'ts',
-      difficulty: 'Easy' as Difficulty,
+      difficulty: Difficulty.Easy,
       tags: ['Array', 'Hash Table'],
     },
     {
@@ -39,7 +39,7 @@ describe('computeDashboardProgress', () => {
       timestamp: Date.now() / 1000,
       status: 'Accepted',
       lang: 'ts',
-      difficulty: 'Easy' as Difficulty,
+      difficulty: Difficulty.Easy,
       tags: ['Linked List'],
     },
     {
@@ -48,7 +48,7 @@ describe('computeDashboardProgress', () => {
       timestamp: Date.now() / 1000,
       status: 'Accepted',
       lang: 'ts',
-      difficulty: 'Medium' as Difficulty,
+      difficulty: Difficulty.Medium,
       tags: ['Linked List', 'Math'],
     },
   ];
@@ -181,7 +181,7 @@ describe('computeDashboardProgress', () => {
         timestamp: Date.now() / 1000,
         status: 'Accepted',
         lang: 'ts',
-        difficulty: 'Easy' as Difficulty,
+        difficulty: Difficulty.Easy,
         tags: undefined,
       },
     ];
