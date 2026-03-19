@@ -163,7 +163,7 @@ export async function syncDemoSolves(db: {
     const enrichedSolve = {
       ...solve,
       tags: problem.tags,
-      difficulty: normalizeDifficulty(problem.difficulty) ?? problem.difficulty,
+      difficulty: normalizeDifficulty(problem.difficulty),
     };
 
     await db.saveSolve(enrichedSolve);

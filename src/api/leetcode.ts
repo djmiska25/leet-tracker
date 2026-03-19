@@ -1,4 +1,4 @@
-import { allCategories, Category, Difficulty, Problem } from '../types/types';
+import { allCategories, Category, Problem } from '../types/types';
 import { normalizeDifficulty } from '../utils/difficulty';
 
 /** LeetCode GraphQL proxy endpoint (serverless function) see: api/leetcode-graphql.ts */
@@ -42,7 +42,7 @@ export async function fetchProblemCatalog(url: string): Promise<Problem[]> {
     title: p.title,
     tags: mapTagsToCategories(p.topicTags),
     description: p.description ?? '',
-    difficulty: normalizeDifficulty(p.difficulty) ?? Difficulty.Easy,
+    difficulty: normalizeDifficulty(p.difficulty),
     popularity: p.popularity,
     isPaid: p.isPaidOnly,
     isFundamental: p.isFundamental,

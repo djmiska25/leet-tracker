@@ -132,6 +132,9 @@ export const trackTourStep = (stepId: string, view: 'dashboard' | 'history') =>
 export const trackErrorBoundary = (errorMessage: string, stack?: string) =>
   posthog.capture('error_boundary_triggered', { errorMessage, stack });
 
+export const trackUnknownDifficulty = (raw: string) =>
+  posthog.capture('unknown_difficulty_value', { raw });
+
 /* ---------- Onboarding tracking ---------- */
 
 export const trackOnboardingStarted = (username: string, hasExtension: boolean) =>
