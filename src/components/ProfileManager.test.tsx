@@ -5,6 +5,10 @@ import { vi, describe, it, beforeAll, beforeEach, afterEach, expect, Mock } from
 import ProfileManager from './ProfileManager';
 import { db } from '@/storage/db';
 
+vi.mock('@/domain/catalogCategories', () => ({
+  getCatalogCategories: vi.fn().mockResolvedValue(['Array', 'Matrix']),
+}));
+
 describe('<ProfileManager>', () => {
   let setActiveGoalProfileSpy: ReturnType<typeof vi.spyOn>;
 

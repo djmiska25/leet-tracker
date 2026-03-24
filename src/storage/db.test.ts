@@ -131,7 +131,81 @@ describe('db storage module', () => {
     expect(timestamp).toBe(1746308137);
   });
 
-  it('migrates difficulty casing from v4 to v5', async () => {
+  it('returns categories from the tags index', async () => {
+    await db.addOrUpdateProblem({ ...exampleProblem, slug: 'one', tags: ['Array', 'Matrix'] });
+    await db.addOrUpdateProblem({ ...exampleProblem, slug: 'two', tags: ['Graph', 'Array'] });
+
+    const categories = await db.getCatalogCategories();
+
+    expect(categories).toEqual(['Array', 'Graph', 'Matrix']);
+  });
+
+  it('updates solve metadata after catalog refresh', async () => {
+    await db.setUsername('testuser');
+    await db.saveSolve({
+      ...exampleSolve,
+      slug: 'two-sum',
+      tags: ['Old Tag'],
+      difficulty: Difficulty.Medium,
+    });
+
+    const updated = await db.updateSolveMetadataFromCatalog([
+      {
+        ...exampleProblem,
+        slug: 'two-sum',
+        tags: ['Array', 'Math'],
+        difficulty: Difficulty.Hard,
+      },
+    ]);
+
+    const solves = await db.getAllSolves();
+
+    expect(updated).toBe(1);
+    expect(solves[0]?.tags).toEqual(['Array', 'Math']);
+    expect(solves[0]?.difficulty).toBe(Difficulty.Hard);
+  });
+
+  it('updates solve metadata for all users with matching slugs', async () => {
+    await db.setUsername('user1');
+    await db.saveSolve({
+      ...exampleSolve,
+      slug: 'two-sum',
+      tags: ['Old Tag'],
+      difficulty: Difficulty.Medium,
+    });
+
+    await db.setUsername('user2');
+    await db.saveSolve({
+      ...exampleSolve,
+      slug: 'two-sum',
+      tags: ['Old Tag'],
+      difficulty: Difficulty.Medium,
+      timestamp: 1234567891,
+    });
+
+    const updated = await db.updateSolveMetadataFromCatalog([
+      {
+        ...exampleProblem,
+        slug: 'two-sum',
+        tags: ['Array', 'Math'],
+        difficulty: Difficulty.Hard,
+      },
+    ]);
+
+    await db.setUsername('user1');
+    const user1Solves = await db.getAllSolves();
+
+    await db.setUsername('user2');
+    const user2Solves = await db.getAllSolves();
+
+    expect(updated).toBe(2);
+    expect(user1Solves[0]?.tags).toEqual(['Array', 'Math']);
+    expect(user1Solves[0]?.difficulty).toBe(Difficulty.Hard);
+    expect(user2Solves[0]?.tags).toEqual(['Array', 'Math']);
+    expect(user2Solves[0]?.difficulty).toBe(Difficulty.Hard);
+  });
+
+  it('migrates solve difficulty casing during v4-to-v6 upgrades', async () => {
     const username = 'testuser';
 
     const legacyDb = await openDB('leet-tracker-db', 4, {

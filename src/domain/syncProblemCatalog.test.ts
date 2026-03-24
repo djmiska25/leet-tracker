@@ -18,6 +18,7 @@ const mockProblems: Problem[] = [
     isPaid: false,
     isFundamental: true,
     createdAt: Math.floor(Date.now() / 1000) - 100000, // Recent
+    updatedAt: Math.floor(Date.now() / 1000) - 100000,
   },
   {
     slug: 'add-two-numbers',
@@ -29,6 +30,7 @@ const mockProblems: Problem[] = [
     isPaid: false,
     isFundamental: false,
     createdAt: Math.floor(Date.now() / 1000) - 200000, // Older
+    updatedAt: Math.floor(Date.now() / 1000) - 200000,
   },
 ];
 
@@ -41,6 +43,7 @@ describe('syncProblemCatalog', () => {
 
     // Mock db methods
     vi.mocked(db.getProblemListLastUpdated).mockResolvedValue(undefined);
+    vi.mocked(db.updateSolveMetadataFromCatalog).mockResolvedValue(0);
     vi.mocked(fetchProblemCatalog).mockResolvedValue(mockProblems);
 
     // Mock withTransaction
@@ -71,6 +74,7 @@ describe('syncProblemCatalog', () => {
       ['problem-list', 'problem-metadata'],
       expect.any(Function),
     );
+    expect(db.updateSolveMetadataFromCatalog).toHaveBeenCalledWith(mockProblems);
   });
 
   it('fetches catalog when stale (older than 24 hours)', async () => {
@@ -91,6 +95,7 @@ describe('syncProblemCatalog', () => {
 
     expect(fetchProblemCatalog).not.toHaveBeenCalled();
     expect(db.withTransaction).not.toHaveBeenCalled();
+    expect(db.updateSolveMetadataFromCatalog).not.toHaveBeenCalled();
   });
 
   it('only stores new problems created after last update', async () => {
@@ -107,6 +112,7 @@ describe('syncProblemCatalog', () => {
       isPaid: false,
       isFundamental: false,
       createdAt: Math.floor(Date.now() / 1000) - 60, // Very recent
+      updatedAt: Math.floor(Date.now() / 1000) - 60,
     };
 
     const oldProblem: Problem = {
@@ -119,6 +125,7 @@ describe('syncProblemCatalog', () => {
       isPaid: false,
       isFundamental: false,
       createdAt: Math.floor((lastUpdated - 1000) / 1000), // Before last update
+      updatedAt: Math.floor((lastUpdated - 1000) / 1000),
     };
 
     vi.mocked(fetchProblemCatalog).mockResolvedValue([newProblem, oldProblem]);
@@ -149,6 +156,118 @@ describe('syncProblemCatalog', () => {
     expect(problemListPutSpy).not.toHaveBeenCalledWith(oldProblem, 'old-problem');
 
     // Verify lastUpdated metadata was saved
+    expect(problemMetadataPutSpy).toHaveBeenCalledWith(expect.any(Number), 'lastUpdated');
+  });
+
+  it('stores problems updated after last update', async () => {
+    const lastUpdated = Date.now() - 3 * 24 * 60 * 60 * 1000; // 3 days ago
+    vi.mocked(db.getProblemListLastUpdated).mockResolvedValue(lastUpdated);
+
+    const updatedProblem: Problem = {
+      slug: 'updated-problem',
+      title: 'Updated Problem',
+      tags: ['Array'],
+      description: '',
+      difficulty: Difficulty.Easy,
+      popularity: 0.5,
+      isPaid: false,
+      isFundamental: false,
+      createdAt: Math.floor((lastUpdated - 1000) / 1000),
+      updatedAt: Math.floor(Date.now() / 1000),
+    };
+
+    const unchangedProblem: Problem = {
+      slug: 'unchanged-problem',
+      title: 'Unchanged Problem',
+      tags: ['Array'],
+      description: '',
+      difficulty: Difficulty.Easy,
+      popularity: 0.5,
+      isPaid: false,
+      isFundamental: false,
+      createdAt: Math.floor((lastUpdated - 1000) / 1000),
+      updatedAt: Math.floor((lastUpdated - 1000) / 1000),
+    };
+
+    vi.mocked(fetchProblemCatalog).mockResolvedValue([updatedProblem, unchangedProblem]);
+
+    const problemListPutSpy = vi.fn();
+    const problemMetadataPutSpy = vi.fn();
+
+    withTransactionSpy.mockImplementation(async (_stores: any, callback: any) => {
+      const mockTx = {
+        objectStore: (name: string) => {
+          if (name === 'problem-list') {
+            return { put: problemListPutSpy };
+          }
+          if (name === 'problem-metadata') {
+            return { put: problemMetadataPutSpy };
+          }
+          return { put: vi.fn() };
+        },
+      };
+      await callback(mockTx);
+    });
+
+    await syncProblemCatalog();
+
+    expect(problemListPutSpy).toHaveBeenCalledWith(updatedProblem, 'updated-problem');
+    expect(problemListPutSpy).not.toHaveBeenCalledWith(unchangedProblem, 'unchanged-problem');
+    expect(problemMetadataPutSpy).toHaveBeenCalledWith(expect.any(Number), 'lastUpdated');
+  });
+
+  it('stores problems without updatedAt using createdAt', async () => {
+    const lastUpdated = Date.now() - 3 * 24 * 60 * 60 * 1000; // 3 days ago
+    vi.mocked(db.getProblemListLastUpdated).mockResolvedValue(lastUpdated);
+
+    const newProblem: Problem = {
+      slug: 'created-only-new',
+      title: 'Created Only New',
+      tags: ['Array'],
+      description: '',
+      difficulty: Difficulty.Easy,
+      popularity: 0.5,
+      isPaid: false,
+      isFundamental: false,
+      createdAt: Math.floor(Date.now() / 1000),
+    };
+
+    const oldProblem: Problem = {
+      slug: 'created-only-old',
+      title: 'Created Only Old',
+      tags: ['Array'],
+      description: '',
+      difficulty: Difficulty.Easy,
+      popularity: 0.5,
+      isPaid: false,
+      isFundamental: false,
+      createdAt: Math.floor((lastUpdated - 1000) / 1000),
+    };
+
+    vi.mocked(fetchProblemCatalog).mockResolvedValue([newProblem, oldProblem]);
+
+    const problemListPutSpy = vi.fn();
+    const problemMetadataPutSpy = vi.fn();
+
+    withTransactionSpy.mockImplementation(async (_stores: any, callback: any) => {
+      const mockTx = {
+        objectStore: (name: string) => {
+          if (name === 'problem-list') {
+            return { put: problemListPutSpy };
+          }
+          if (name === 'problem-metadata') {
+            return { put: problemMetadataPutSpy };
+          }
+          return { put: vi.fn() };
+        },
+      };
+      await callback(mockTx);
+    });
+
+    await syncProblemCatalog();
+
+    expect(problemListPutSpy).toHaveBeenCalledWith(newProblem, 'created-only-new');
+    expect(problemListPutSpy).not.toHaveBeenCalledWith(oldProblem, 'created-only-old');
     expect(problemMetadataPutSpy).toHaveBeenCalledWith(expect.any(Number), 'lastUpdated');
   });
 

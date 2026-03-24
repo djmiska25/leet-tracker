@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { db } from '@/storage/db';
-import type { GoalProfile, Category } from '@/types/types';
-import { allCategories } from '@/types/types';
+import type { GoalProfile } from '@/types/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, Plus, X } from 'lucide-react';
 import clsx from 'clsx';
 import { trackProfileChanged } from '@/utils/analytics';
+import { getCatalogCategories } from '@/domain/catalogCategories';
 
 interface Props {
   onDone: () => void;
@@ -22,11 +22,9 @@ export function ProfileManager({ onDone }: Props) {
   /** creation UI */
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
-  const [targets, setTargets] = useState<Record<Category, number>>(() => {
-    const obj: Record<Category, number> = {} as any;
-    allCategories.forEach((c) => (obj[c] = 0));
-    return obj;
-  });
+  const [categories, setCategories] = useState<string[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [targets, setTargets] = useState<Record<string, number>>({});
 
   /* ---------------- helpers ---------------- */
   const load = async () => {
@@ -38,6 +36,45 @@ export function ProfileManager({ onDone }: Props) {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadCategories = async () => {
+      const list = await getCatalogCategories(true);
+      console.log('Loaded categories for Profile Manager:', list);
+      if (!mounted) return;
+      setCategories(list);
+      setCategoriesLoading(false);
+      setTargets((prev) => {
+        if (Object.keys(prev).length > 0) return prev;
+        const next: Record<string, number> = {};
+        list.forEach((c) => {
+          next[c] = 0;
+        });
+        return next;
+      });
+    };
+
+    loadCategories();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (categories.length === 0) return;
+    setTargets((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const category of categories) {
+        if (next[category] === undefined) {
+          next[category] = 0;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [categories]);
 
   // --- Prevent background scrolling while modal is open
   useEffect(() => {
@@ -58,9 +95,9 @@ export function ProfileManager({ onDone }: Props) {
       description: '',
       goals: Object.fromEntries(
         Object.entries(targets)
-          .filter(([_, v]) => v > 0) // drop 0-percent categories
-          .map(([k, v]) => [k, v / 100]), // convert to 0-1
-      ) as Record<Category, number>,
+          .filter(([k, v]) => v > 0 && categories.includes(k))
+          .map(([k, v]) => [k, v / 100]),
+      ),
     };
     await db.saveGoalProfile(profile);
     await db.setActiveGoalProfile(profile.id);
@@ -161,34 +198,46 @@ export function ProfileManager({ onDone }: Props) {
 
                 {/* targets */}
                 <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2">
-                  {allCategories.map((cat) => (
-                    <div key={cat} className="flex items-center justify-between gap-2">
-                      <label className="text-sm truncate flex-1" htmlFor={`t-${cat}`}>
-                        {cat}
-                      </label>
-                      <input
-                        id={`t-${cat}`}
-                        type="number"
-                        min={0}
-                        max={100}
-                        className="w-20 rounded-md border px-2 py-1 text-right"
-                        value={targets[cat]}
-                        onChange={(e) =>
-                          setTargets((t) => ({
-                            ...t,
-                            [cat]: Math.max(0, Math.min(100, Number(e.target.value) || 0)),
-                          }))
-                        }
-                      />
-                    </div>
-                  ))}
+                  {categoriesLoading && (
+                    <p className="text-sm text-muted-foreground">Loading categories…</p>
+                  )}
+                  {!categoriesLoading && categories.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No categories available yet. Try syncing the catalog.
+                    </p>
+                  )}
+                  {!categoriesLoading &&
+                    categories.map((cat) => (
+                      <div key={cat} className="flex items-center justify-between gap-2">
+                        <label className="text-sm truncate flex-1" htmlFor={`t-${cat}`}>
+                          {cat}
+                        </label>
+                        <input
+                          id={`t-${cat}`}
+                          type="number"
+                          min={0}
+                          max={100}
+                          className="w-20 rounded-md border px-2 py-1 text-right"
+                          value={targets[cat]}
+                          onChange={(e) =>
+                            setTargets((t) => ({
+                              ...t,
+                              [cat]: Math.max(0, Math.min(100, Number(e.target.value) || 0)),
+                            }))
+                          }
+                        />
+                      </div>
+                    ))}
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2">
                   <Button variant="outline" onClick={() => setCreating(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={handleCreate} disabled={!name.trim()}>
+                  <Button
+                    onClick={handleCreate}
+                    disabled={!name.trim() || categoriesLoading || categories.length === 0}
+                  >
                     Create
                   </Button>
                 </div>

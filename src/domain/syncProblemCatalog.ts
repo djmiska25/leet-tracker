@@ -23,6 +23,10 @@ function isStale(epoch: number | undefined, maxAgeMinutes: number): boolean {
   return diffInMinutes > maxAgeMinutes;
 }
 
+function getEffectiveUpdatedAtMs(problem: { updatedAt?: number; createdAt: number }): number {
+  return (problem.updatedAt ?? problem.createdAt) * 1000;
+}
+
 /**
  * Sync the problem catalog from remote source.
  * Uses singleton pattern to prevent concurrent loads.
@@ -51,7 +55,7 @@ export async function syncProblemCatalog(): Promise<void> {
         console.log('[syncProblemCatalog] Fetching latest problem catalog...');
         const remoteProblems = await fetchProblemCatalog(PROBLEM_CATALOG_URL);
         const newProblems = remoteProblems.filter(
-          (problem) => !lastUpdated || problem.createdAt * 1000 > lastUpdated,
+          (problem) => !lastUpdated || getEffectiveUpdatedAtMs(problem) > lastUpdated,
         );
 
         await db.withTransaction(['problem-list', 'problem-metadata'], async (tx) => {
@@ -63,6 +67,12 @@ export async function syncProblemCatalog(): Promise<void> {
             `[syncProblemCatalog] Catalog updated — ${newProblems.length} new problems added`,
           );
         });
+
+        const updatedSolves = await db.updateSolveMetadataFromCatalog(remoteProblems);
+        if (updatedSolves > 0) {
+          console.log(`[syncProblemCatalog] Updated tags on ${updatedSolves} existing solves`);
+        }
+        db.invalidateCategoryCache();
       } else {
         console.log('[syncProblemCatalog] Catalog is fresh, no update needed');
       }

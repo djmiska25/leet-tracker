@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useToast } from '@/components/ui/toast';
 import { computeDashboardProgress } from '@/domain/dashboardProgress';
-import { getActiveOrInitProfile } from '@/domain/goalProfiles';
+import { loadProfilesForCategories } from '@/domain/goalProfiles';
+import { getCatalogCategories } from '@/domain/catalogCategories';
 import { SOLVES_UPDATED_EVENT } from '@/domain/extensionPoller';
-import { db } from '@/storage/db';
 import type { CategoryProgress } from '@/types/progress';
 import type { GoalProfile } from '@/types/types';
 
@@ -46,21 +46,29 @@ export function useDashboard() {
           setState((prev) => ({ ...prev, syncing: true }));
         }
 
-        // Get the active profile (this initializes profiles if needed)
-        const profile = await getActiveOrInitProfile();
+        const categories = await getCatalogCategories(true);
+        if (categories.length === 0) {
+          toast('No categories found in the problem catalog', 'error');
+        }
 
-        // Load all profiles and active profile ID
-        const profiles = await db.getAllGoalProfiles();
-        const activeProfileId = await db.getActiveGoalProfileId();
+        const { profiles, activeProfile, activeProfileId, prunedGoalCount } =
+          await loadProfilesForCategories(categories);
+
+        if (prunedGoalCount > 0) {
+          toast(
+            'Some profile goals were removed because those categories no longer exist in the catalog.',
+            'error',
+          );
+        }
 
         // Compute progress with the profile
-        const progress = await computeDashboardProgress(profile);
+        const progress = await computeDashboardProgress(activeProfile);
 
         setState({
           loading: false,
           syncing: false,
           progress,
-          profile,
+          profile: activeProfile,
           profiles,
           activeProfileId: activeProfileId ?? profiles[0]?.id,
         });
@@ -96,14 +104,21 @@ export function useDashboard() {
 
   // Reload profiles without recomputing progress (for ProfileManager changes)
   const reloadProfiles = useCallback(async () => {
-    const profiles = await db.getAllGoalProfiles();
-    const activeProfileId = await db.getActiveGoalProfileId();
+    const categories = await getCatalogCategories(false);
+    const { profiles, activeProfileId, prunedGoalCount } =
+      await loadProfilesForCategories(categories);
+    if (prunedGoalCount > 0) {
+      toast(
+        'Some profile goals were removed because those categories no longer exist in the catalog.',
+        'error',
+      );
+    }
     setState((prev) => ({
       ...prev,
       profiles,
       activeProfileId: activeProfileId ?? profiles[0]?.id,
     }));
-  }, []);
+  }, [toast]);
 
   return {
     ...state,

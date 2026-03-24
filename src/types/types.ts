@@ -6,81 +6,7 @@ export enum Difficulty {
   Hard = 'HARD',
 }
 
-export const allCategories = [
-  'Counting',
-  'Binary Search Tree',
-  'Concurrency',
-  'Dynamic Programming',
-  'Matrix',
-  'Memoization',
-  'Union Find',
-  'Line Sweep',
-  'Interactive',
-  'Number Theory',
-  'Backtracking',
-  'Array',
-  'Rejection Sampling',
-  'Geometry',
-  'Randomized',
-  'String',
-  'Topological Sort',
-  'Binary Indexed Tree',
-  'String Matching',
-  'Enumeration',
-  'Binary Tree',
-  'Doubly-Linked List',
-  'Heap (Priority Queue)',
-  'Binary Search',
-  'Combinatorics',
-  'Bucket Sort',
-  'Greedy',
-  'Trie',
-  'Prefix Sum',
-  'Bitmask',
-  'Linked List',
-  'Depth-First Search',
-  'Database',
-  'Graph',
-  'Divide and Conquer',
-  'Tree',
-  'Breadth-First Search',
-  'Recursion',
-  'Shortest Path',
-  'Design',
-  'Eulerian Circuit',
-  'Biconnected Component',
-  'Stack',
-  'Monotonic Stack',
-  'Hash Table',
-  'Rolling Hash',
-  'Two Pointers',
-  'Sorting',
-  'Ordered Set',
-  'Probability and Statistics',
-  'Hash Function',
-  'Quickselect',
-  'Queue',
-  'Strongly Connected Component',
-  'Segment Tree',
-  'Minimum Spanning Tree',
-  'Radix Sort',
-  'Math',
-  'Monotonic Queue',
-  'Merge Sort',
-  'Bit Manipulation',
-  'Data Stream',
-  'Shell',
-  'Sliding Window',
-  'Simulation',
-  'Counting Sort',
-  'Game Theory',
-  'Iterator',
-  'Brainteaser',
-  'Reservoir Sampling',
-  'Suffix Array',
-] as const;
-
-export type Category = (typeof allCategories)[number] | 'Random';
+export type Category = string;
 
 /* -------------------------------------------------------------------------- */
 /*                                Problem types                               */
@@ -96,6 +22,7 @@ export interface Problem {
   isPaid: boolean; // true if problem is paid
   isFundamental: boolean; // infered from ai model
   createdAt: number; // epoch time in seconds
+  updatedAt?: number; // epoch time in seconds, optional
 }
 
 /** Shape sometimes returned by the extension for problemDescription enrichment. */
@@ -258,4 +185,5 @@ export interface GoalProfile {
   goals: GoalMap; // Goals by category
   createdAt: string; // epoch time in milliseconds
   isEditable: boolean; // If false, profile is locked(default profile)
+  createdVersion?: number; // Version when a system profile was introduced
 }
