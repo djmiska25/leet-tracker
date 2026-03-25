@@ -40,19 +40,28 @@ export function ProfileManager({ onDone }: Props) {
   useEffect(() => {
     let mounted = true;
     const loadCategories = async () => {
-      const list = await getCatalogCategories(true);
-      console.log('Loaded categories for Profile Manager:', list);
-      if (!mounted) return;
-      setCategories(list);
-      setCategoriesLoading(false);
-      setTargets((prev) => {
-        if (Object.keys(prev).length > 0) return prev;
-        const next: Record<string, number> = {};
-        list.forEach((c) => {
-          next[c] = 0;
+      setCategoriesLoading(true);
+      try {
+        const list = await getCatalogCategories(true);
+        if (!mounted) return;
+        setCategories(list);
+        setTargets((prev) => {
+          if (Object.keys(prev).length > 0) return prev;
+          const next: Record<string, number> = {};
+          list.forEach((c) => {
+            next[c] = 0;
+          });
+          return next;
         });
-        return next;
-      });
+      } catch (error) {
+        if (!mounted) return;
+        console.error('Failed to load categories for Profile Manager:', error);
+        setCategories([]);
+      } finally {
+        if (mounted) {
+          setCategoriesLoading(false);
+        }
+      }
     };
 
     loadCategories();
@@ -87,6 +96,7 @@ export function ProfileManager({ onDone }: Props) {
 
   const handleCreate = async () => {
     if (!name.trim()) return;
+    if (!Object.values(targets).some((value) => value > 0)) return;
     const profile: GoalProfile = {
       id: crypto.randomUUID(),
       name: name.trim(),
@@ -95,7 +105,7 @@ export function ProfileManager({ onDone }: Props) {
       description: '',
       goals: Object.fromEntries(
         Object.entries(targets)
-          .filter(([k, v]) => v > 0 && categories.includes(k))
+          .filter(([, v]) => v > 0)
           .map(([k, v]) => [k, v / 100]),
       ),
     };
@@ -203,7 +213,8 @@ export function ProfileManager({ onDone }: Props) {
                   )}
                   {!categoriesLoading && categories.length === 0 && (
                     <p className="text-sm text-muted-foreground">
-                      No categories available yet. Try syncing the catalog.
+                      No categories available yet. Try switching profiles or sync the catalog before
+                      creating one.
                     </p>
                   )}
                   {!categoriesLoading &&
@@ -236,7 +247,12 @@ export function ProfileManager({ onDone }: Props) {
                   </Button>
                   <Button
                     onClick={handleCreate}
-                    disabled={!name.trim() || categoriesLoading || categories.length === 0}
+                    disabled={
+                      !name.trim() ||
+                      categoriesLoading ||
+                      categories.length === 0 ||
+                      !Object.values(targets).some((value) => value > 0)
+                    }
                   >
                     Create
                   </Button>

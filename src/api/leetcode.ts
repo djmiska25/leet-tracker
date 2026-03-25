@@ -1,4 +1,4 @@
-import { Category, Difficulty, Problem } from '../types/types';
+import { Category, Problem } from '../types/types';
 import { normalizeDifficulty } from '../utils/difficulty';
 
 /** LeetCode GraphQL proxy endpoint (serverless function) see: api/leetcode-graphql.ts */
@@ -25,15 +25,17 @@ interface RawProblemData {
 /* ------------------------------ Tag utilities ------------------------------ */
 export function mapTagsToCategories(tags: string[]): Category[] {
   const seen = new Set<string>();
-  const result: Category[] = [];
   for (const tag of tags) {
     if (typeof tag !== 'string') continue;
     const trimmed = tag.trim();
-    if (!trimmed || seen.has(trimmed)) continue;
-    seen.add(trimmed);
-    result.push(trimmed);
+    if (!trimmed) continue;
+    const normalized = trimmed
+      .replace(/\s+/g, ' ')
+      .toLowerCase()
+      .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+    seen.add(normalized);
   }
-  return result;
+  return Array.from(seen);
 }
 
 /* ------------------------- Problem catalog (unchanged) ---------------------- */
@@ -49,7 +51,7 @@ export async function fetchProblemCatalog(url: string): Promise<Problem[]> {
     title: p.title,
     tags: mapTagsToCategories(p.topicTags),
     description: p.description ?? '',
-    difficulty: normalizeDifficulty(p.difficulty) ?? Difficulty.Easy,
+    difficulty: normalizeDifficulty(p.difficulty),
     popularity: p.popularity,
     isPaid: p.isPaidOnly,
     isFundamental: p.isFundamental,

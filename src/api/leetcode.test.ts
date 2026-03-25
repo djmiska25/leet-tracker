@@ -19,6 +19,24 @@ describe('mapTagsToCategories', () => {
   it('handles an empty input array', () => {
     expect(mapTagsToCategories([])).toEqual([]);
   });
+
+  it('normalizes tags to title case', () => {
+    const input = [
+      'array',
+      '  sliding   window ',
+      'HEAP (PRIORITY QUEUE)',
+      'depth-first search',
+      'breadth-first search',
+    ];
+
+    expect(mapTagsToCategories(input)).toEqual([
+      'Array',
+      'Sliding Window',
+      'Heap (Priority Queue)',
+      'Depth-First Search',
+      'Breadth-First Search',
+    ]);
+  });
 });
 
 /* ------------------------------------------------------------------ */
