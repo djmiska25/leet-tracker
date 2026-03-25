@@ -60,6 +60,8 @@ describe('db storage module', () => {
   afterEach(async () => {
     // Reset the username cache
     db._usernameCache = null;
+    // Clear memoized category cache for isolation
+    db.invalidateCategoryCache();
     // Clear localStorage to ensure test isolation
     localStorage.clear();
 

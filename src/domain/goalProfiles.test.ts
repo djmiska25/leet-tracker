@@ -3,6 +3,9 @@ import { fetchSystemProfiles, loadProfilesForCategories } from './goalProfiles';
 import { db } from '@/storage/db';
 
 vi.mock('@/storage/db');
+vi.mock('@/utils/analytics', () => ({
+  trackProfilePruned: vi.fn(),
+}));
 
 describe('loadProfilesForCategories', () => {
   beforeEach(() => {
