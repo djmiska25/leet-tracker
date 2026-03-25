@@ -49,6 +49,7 @@ export function useDashboard() {
         const categories = await db.getCatalogCategories();
         if (categories.length === 0) {
           toast('No categories found in the problem catalog', 'error');
+          throw new Error('No categories found in the problem catalog');
         }
 
         const { profiles, activeProfile, activeProfileId, prunedGoalCount } =

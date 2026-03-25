@@ -215,18 +215,14 @@ let dbPromise: Promise<import('idb').IDBPDatabase<LeetTrackerDB>> | null = initD
 let categoryCache: string[] | null = null;
 
 const normalizeTags = (tags: string[] | undefined): string[] =>
-  (tags ?? []).map((tag) => tag.trim()).filter((tag) => tag.length > 0);
+  (tags ?? []).map((tag) => tag.trim().toLocaleLowerCase()).filter((tag) => tag.length > 0);
 
 const areTagsEqual = (left: string[] | undefined, right: string[] | undefined): boolean => {
-  const a = normalizeTags(left)
-    .slice()
-    .sort((x, y) => x.localeCompare(y));
-  const b = normalizeTags(right)
-    .slice()
-    .sort((x, y) => x.localeCompare(y));
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i += 1) {
-    if (a[i] !== b[i]) return false;
+  const a = new Set(normalizeTags(left));
+  const b = new Set(normalizeTags(right));
+  if (a.size !== b.size) return false;
+  for (const tag of a) {
+    if (!b.has(tag)) return false;
   }
   return true;
 };
@@ -259,12 +255,7 @@ export const db = {
   ---------------------------------------------------------------------------- */
 
   async getUserPrefixOrThrow(): Promise<string> {
-    const u = await this.getUsername();
-    // In practice, operations occur post sign-in; prefix with username.
-    // We _should_ never hit this in practice, but handle it gracefully.
-    if (u === undefined) {
-      throw new Error('Username is not set, cannot build namespaced keys');
-    }
+    const u = await this.getUsernameOrThrow();
     return u + '|';
   },
 
@@ -306,6 +297,13 @@ export const db = {
     // Load from database and cache
     const username = await (await getDbPromise()).get('leetcode-username', 'username');
     this._usernameCache = username;
+    return username;
+  },
+  async getUsernameOrThrow(): Promise<string> {
+    const username = await this.getUsername();
+    if (!username) {
+      throw new Error('Username is not set');
+    }
     return username;
   },
   async setUsername(username: string): Promise<string> {
@@ -378,8 +376,8 @@ export const db = {
           ) {
             const solve = cursor.value as Solve;
 
-            const nextTags = normalizeTags(problem.tags);
-            const nextDifficulty = normalizeDifficulty(problem.difficulty);
+            const nextTags = problem.tags;
+            const nextDifficulty = problem.difficulty;
             const tagsChanged = !areTagsEqual(solve.tags, nextTags);
             const difficultyChanged = solve.difficulty !== nextDifficulty;
 

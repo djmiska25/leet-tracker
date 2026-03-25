@@ -341,13 +341,9 @@ describe('db storage module', () => {
       // Test the getUserPrefix logic directly by setting cache to undefined
       db._usernameCache = undefined;
 
-      await expect(db.getUserPrefixOrThrow()).rejects.toThrow(
-        'Username is not set, cannot build namespaced keys',
-      );
+      await expect(db.getUserPrefixOrThrow()).rejects.toThrow('Username is not set');
 
-      await expect(db.nsSolveKey('two-sum', 1234567890)).rejects.toThrow(
-        'Username is not set, cannot build namespaced keys',
-      );
+      await expect(db.nsSolveKey('two-sum', 1234567890)).rejects.toThrow('Username is not set');
     });
   });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { loadProfilesForCategories } from './goalProfiles';
+import { fetchSystemProfiles, loadProfilesForCategories } from './goalProfiles';
 import { db } from '@/storage/db';
 
 vi.mock('@/storage/db');
@@ -49,14 +49,15 @@ describe('loadProfilesForCategories', () => {
 
     vi.mocked(db.getAllGoalProfiles)
       .mockResolvedValueOnce(existing as any)
+      .mockResolvedValueOnce(existing as any)
       .mockResolvedValueOnce(existing as any);
-    vi.mocked(db.getUsername).mockResolvedValue('user1');
+    vi.mocked(db.getUsernameOrThrow).mockResolvedValue('user1');
     vi.mocked(db.getAppPref).mockResolvedValue(1);
     vi.mocked(db.saveGoalProfile).mockResolvedValue('');
     vi.mocked(db.setAppPref).mockResolvedValue();
     vi.mocked(db.getActiveGoalProfileId).mockResolvedValue('default');
 
-    await loadProfilesForCategories([]);
+    await loadProfilesForCategories(['Array']);
 
     const saved = vi.mocked(db.saveGoalProfile).mock.calls.map((call) => call[0]);
     expect(saved).toEqual(
@@ -106,14 +107,15 @@ describe('loadProfilesForCategories', () => {
 
     vi.mocked(db.getAllGoalProfiles)
       .mockResolvedValueOnce(existing as any)
+      .mockResolvedValueOnce(existing as any)
       .mockResolvedValueOnce(existing as any);
-    vi.mocked(db.getUsername).mockResolvedValue('user1');
+    vi.mocked(db.getUsernameOrThrow).mockResolvedValue('user1');
     vi.mocked(db.getAppPref).mockResolvedValue(1);
     vi.mocked(db.saveGoalProfile).mockResolvedValue('');
     vi.mocked(db.setAppPref).mockResolvedValue();
     vi.mocked(db.getActiveGoalProfileId).mockResolvedValue('user-1');
 
-    await loadProfilesForCategories([]);
+    await loadProfilesForCategories(['Array']);
 
     const saved = vi.mocked(db.saveGoalProfile).mock.calls.map((call) => call[0]);
     expect(saved).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'amazon' })]));
@@ -151,14 +153,15 @@ describe('loadProfilesForCategories', () => {
 
     vi.mocked(db.getAllGoalProfiles)
       .mockResolvedValueOnce(existing as any)
+      .mockResolvedValueOnce(existing as any)
       .mockResolvedValueOnce(existing as any);
-    vi.mocked(db.getUsername).mockResolvedValue('user1');
+    vi.mocked(db.getUsernameOrThrow).mockResolvedValue('user1');
     vi.mocked(db.getAppPref).mockResolvedValue(2);
     vi.mocked(db.saveGoalProfile).mockResolvedValue('');
     vi.mocked(db.setAppPref).mockResolvedValue();
     vi.mocked(db.getActiveGoalProfileId).mockResolvedValue(undefined);
 
-    await loadProfilesForCategories([]);
+    await loadProfilesForCategories(['Array']);
 
     const saved = vi.mocked(db.saveGoalProfile).mock.calls.map((call) => call[0]);
     expect(saved).not.toEqual(
@@ -166,7 +169,7 @@ describe('loadProfilesForCategories', () => {
     );
   });
 
-  it('uses fallback system version when payload omits it', async () => {
+  it('uses the payload system version when seeding defaults', async () => {
     const defaults = [
       {
         id: 'default',
@@ -181,21 +184,21 @@ describe('loadProfilesForCategories', () => {
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
-      json: async () => defaults,
+      json: async () => ({ systemProfilesVersion: 1, profiles: defaults }),
     } as Response);
 
     vi.mocked(db.getAllGoalProfiles)
       .mockResolvedValueOnce([] as any)
-      .mockResolvedValueOnce([] as any);
-    vi.mocked(db.getUsername).mockResolvedValue('user1');
+      .mockResolvedValueOnce(defaults as any);
+    vi.mocked(db.getUsernameOrThrow).mockResolvedValue('user1');
     vi.mocked(db.getAppPref).mockResolvedValue(undefined);
     vi.mocked(db.saveGoalProfile).mockResolvedValue('');
     vi.mocked(db.setAppPref).mockResolvedValue();
     vi.mocked(db.getActiveGoalProfileId).mockResolvedValue(undefined);
 
-    await loadProfilesForCategories([]);
+    await loadProfilesForCategories(['Array']);
 
-    expect(db.setAppPref).toHaveBeenCalledWith('profiles.systemVersion.user1', 0);
+    expect(db.setAppPref).toHaveBeenCalledWith('profiles.systemVersion.user1', 1);
   });
 
   it('replaces fallback profiles when system data becomes available', async () => {
@@ -233,15 +236,16 @@ describe('loadProfilesForCategories', () => {
       .mockResolvedValueOnce([] as any)
       .mockResolvedValueOnce(fallbackProfiles as any)
       .mockResolvedValueOnce(fallbackProfiles as any)
+      .mockResolvedValueOnce(fallbackProfiles as any)
       .mockResolvedValueOnce(fallbackProfiles as any);
-    vi.mocked(db.getUsername).mockResolvedValue('user1');
+    vi.mocked(db.getUsernameOrThrow).mockResolvedValue('user1');
     vi.mocked(db.getAppPref).mockResolvedValueOnce(undefined).mockResolvedValueOnce(0);
     vi.mocked(db.saveGoalProfile).mockResolvedValue('');
     vi.mocked(db.setAppPref).mockResolvedValue();
     vi.mocked(db.getActiveGoalProfileId).mockResolvedValue('default');
 
-    await loadProfilesForCategories([]);
-    await loadProfilesForCategories([]);
+    await loadProfilesForCategories(['Array']);
+    await loadProfilesForCategories(['Array']);
 
     const saved = vi.mocked(db.saveGoalProfile).mock.calls.map((call) => call[0]);
     expect(saved).toEqual(
@@ -267,16 +271,114 @@ describe('loadProfilesForCategories', () => {
 
     vi.mocked(db.getAllGoalProfiles)
       .mockResolvedValueOnce(existing as any)
+      .mockResolvedValueOnce(existing as any)
       .mockResolvedValueOnce(existing as any);
-    vi.mocked(db.getUsername).mockResolvedValue('user1');
+    vi.mocked(db.getUsernameOrThrow).mockResolvedValue('user1');
     vi.mocked(db.getAppPref).mockResolvedValue(0);
     vi.mocked(db.saveGoalProfile).mockResolvedValue('');
     vi.mocked(db.setAppPref).mockResolvedValue();
     vi.mocked(db.getActiveGoalProfileId).mockResolvedValue('default');
 
-    await loadProfilesForCategories([]);
+    await loadProfilesForCategories(['Array']);
 
     expect(db.saveGoalProfile).not.toHaveBeenCalled();
     expect(db.setAppPref).not.toHaveBeenCalled();
+  });
+
+  it('prunes goals using exact category matches', async () => {
+    const defaults = [
+      {
+        id: 'default',
+        name: 'Default',
+        description: 'System Default',
+        createdAt: 'now',
+        createdVersion: 1,
+        isEditable: false,
+        goals: { Array: 0.6 },
+      },
+    ];
+    const existing = [
+      {
+        id: 'default',
+        name: 'Default',
+        description: 'System Default',
+        createdAt: 'then',
+        createdVersion: 1,
+        isEditable: false,
+        goals: { Array: 0.5, array: 0.4, 'Hash Table': 0.2 },
+      },
+    ];
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ systemProfilesVersion: 1, profiles: defaults }),
+    } as Response);
+
+    vi.mocked(db.getAllGoalProfiles).mockResolvedValue(existing as any);
+    vi.mocked(db.getUsernameOrThrow).mockResolvedValue('user1');
+    vi.mocked(db.getAppPref).mockResolvedValue(1);
+    vi.mocked(db.saveGoalProfile).mockResolvedValue('');
+    vi.mocked(db.setAppPref).mockResolvedValue();
+    vi.mocked(db.getActiveGoalProfileId).mockResolvedValue('default');
+
+    const result = await loadProfilesForCategories(['Array']);
+
+    expect(result.prunedGoalCount).toBe(2);
+    expect(db.saveGoalProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'default',
+        goals: { Array: 0.5 },
+      }),
+    );
+  });
+});
+
+describe('fetchSystemProfiles', () => {
+  it('parses the expected system profiles payload shape', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        systemProfilesVersion: 3,
+        profiles: [
+          {
+            id: 'default',
+            name: 'Default',
+            description: 'System Default',
+            goals: { Array: 0.6 },
+            isEditable: false,
+            createdAt: '',
+            createdVersion: 2,
+          },
+          {
+            id: 'interview',
+            name: 'Interview Prep',
+            description: 'System Interview',
+            goals: { String: 0.5 },
+          },
+        ],
+      }),
+    } as Response);
+
+    const result = await fetchSystemProfiles();
+
+    expect(result.systemVersion).toBe(3);
+    expect(result.profiles).toHaveLength(2);
+    expect(result.profiles[0]).toEqual(
+      expect.objectContaining({
+        id: 'default',
+        name: 'Default',
+        isEditable: false,
+        createdVersion: 2,
+      }),
+    );
+    expect(result.profiles[0].createdAt).not.toBe('');
+    expect(result.profiles[1]).toEqual(
+      expect.objectContaining({
+        id: 'interview',
+        isEditable: false,
+        createdVersion: 0,
+      }),
+    );
+    expect(result.profiles[1].createdAt).toBeDefined();
   });
 });

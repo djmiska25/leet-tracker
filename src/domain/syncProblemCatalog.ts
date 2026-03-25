@@ -68,7 +68,7 @@ export async function syncProblemCatalog(): Promise<void> {
           );
         });
 
-        const updatedSolves = await db.updateSolveMetadataFromCatalog(remoteProblems);
+        const updatedSolves = await db.updateSolveMetadataFromCatalog(newProblems);
         if (updatedSolves > 0) {
           console.log(`[syncProblemCatalog] Updated tags on ${updatedSolves} existing solves`);
         }
