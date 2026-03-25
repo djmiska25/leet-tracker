@@ -3,13 +3,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useDashboard } from './useDashboard';
 import { computeDashboardProgress } from '@/domain/dashboardProgress';
 import { loadProfilesForCategories } from '@/domain/goalProfiles';
-import { getCatalogCategories } from '@/domain/catalogCategories';
+import { db } from '@/storage/db';
 import type { GoalProfile } from '@/types/types';
 import type { CategoryProgress } from '@/types/progress';
 
 vi.mock('@/domain/dashboardProgress');
 vi.mock('@/domain/goalProfiles');
-vi.mock('@/domain/catalogCategories');
 
 const mockToast = vi.fn();
 vi.mock('@/components/ui/toast', () => ({
@@ -50,7 +49,7 @@ describe('useDashboard', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(getCatalogCategories).mockResolvedValue(['Array', 'String']);
+    vi.spyOn(db, 'getCatalogCategories').mockResolvedValue(['Array', 'String']);
     vi.mocked(loadProfilesForCategories).mockResolvedValue({
       profiles: mockProfiles,
       activeProfile: mockProfile,
@@ -80,7 +79,7 @@ describe('useDashboard', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(getCatalogCategories).toHaveBeenCalledTimes(1);
+    expect(db.getCatalogCategories).toHaveBeenCalledTimes(1);
     expect(loadProfilesForCategories).toHaveBeenCalledTimes(1);
     expect(computeDashboardProgress).toHaveBeenCalledWith(mockProfile);
     expect(result.current.progress).toEqual(mockProgress);

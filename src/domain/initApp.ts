@@ -7,7 +7,7 @@ import { syncProblemCatalog } from './syncProblemCatalog';
  * Initialize the app on startup.
  *
  * Responsibilities:
- * - Start async catalog sync in background (non-blocking)
+ * - Start async catalog sync in background (non-blocking after initial load)
  * - Sync solve data from extension/demo (BLOCKING, but gracefully handles missing extension)
  * - Identify user for analytics
  *
@@ -34,6 +34,16 @@ export async function initApp(): Promise<{
   syncProblemCatalog().catch((err) => {
     console.error('[initApp] Background catalog sync failed:', err);
   });
+
+  // If catalog is empty, block until we have one before syncing solves.
+  try {
+    const existingCategories = await db.getCatalogCategories();
+    if (existingCategories.length === 0) {
+      await syncProblemCatalog();
+    }
+  } catch (err) {
+    console.error('[initApp] Failed to ensure catalog before solve sync:', err);
+  }
 
   // BLOCKING: Get latest solve data from extension/demo
   try {

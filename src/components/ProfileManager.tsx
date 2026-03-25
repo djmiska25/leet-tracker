@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Trash2, Plus, X } from 'lucide-react';
 import clsx from 'clsx';
 import { trackProfileChanged } from '@/utils/analytics';
-import { getCatalogCategories } from '@/domain/catalogCategories';
 
 interface Props {
   onDone: () => void;
@@ -42,7 +41,7 @@ export function ProfileManager({ onDone }: Props) {
     const loadCategories = async () => {
       setCategoriesLoading(true);
       try {
-        const list = await getCatalogCategories(true);
+        const list = await db.getCatalogCategories();
         if (!mounted) return;
         setCategories(list);
         setTargets((prev) => {

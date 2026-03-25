@@ -3,9 +3,11 @@ import { db } from '../storage/db';
 import { Difficulty, Solve } from '../types/types';
 import { initApp } from './initApp';
 import { syncSolveData } from './syncSolveData';
+import { syncProblemCatalog } from './syncProblemCatalog';
 
 vi.mock('../storage/db');
 vi.mock('./syncSolveData');
+vi.mock('./syncProblemCatalog');
 
 const now = Math.floor(Date.now() / 1000);
 const mockSolves: Solve[] = [
@@ -27,9 +29,13 @@ describe('initApp', () => {
     /* db mocks */
     vi.mocked(db.getUsername).mockResolvedValue('user');
     vi.mocked(db.getAllSolves).mockResolvedValue(mockSolves);
+    vi.mocked(db.getCatalogCategories).mockResolvedValue(['Array']);
 
     /* syncSolveData mock */
     vi.mocked(syncSolveData).mockResolvedValue(0);
+
+    /* syncProblemCatalog mock */
+    vi.mocked(syncProblemCatalog).mockResolvedValue();
   });
 
   afterEach(() => {
@@ -79,5 +85,62 @@ describe('initApp', () => {
     expect(res.username).toBe('test-demo-user');
     expect(res.errors).toEqual([]);
     expect(syncSolveData).toHaveBeenCalledWith('test-demo-user');
+  });
+
+  it('does not block on catalog sync when categories exist', async () => {
+    let resolveCatalog: () => void = () => {};
+    let catalogResolved = false;
+    const catalogPromise = new Promise<void>((resolve) => {
+      resolveCatalog = () => {
+        catalogResolved = true;
+        resolve();
+      };
+    });
+    vi.mocked(syncProblemCatalog).mockReturnValue(catalogPromise);
+    vi.mocked(db.getCatalogCategories).mockResolvedValue(['Array']);
+
+    const res = await initApp();
+
+    expect(res.errors).toEqual([]);
+    expect(syncProblemCatalog).toHaveBeenCalledTimes(1);
+    expect(syncSolveData).toHaveBeenCalledWith('user');
+    expect(catalogResolved).toBe(false);
+
+    resolveCatalog();
+    await catalogPromise;
+  });
+
+  it('blocks on catalog sync when categories are empty', async () => {
+    vi.useFakeTimers();
+    let categories: string[] = [];
+    try {
+      vi.mocked(db.getCatalogCategories).mockImplementation(async () => categories);
+
+      const catalogPromise = new Promise<void>((resolve) => {
+        setTimeout(() => {
+          categories = ['Array'];
+          resolve();
+        }, 200);
+      });
+      vi.mocked(syncProblemCatalog).mockReturnValue(catalogPromise);
+
+      let initResolved = false;
+      const initPromise = initApp().then(() => {
+        initResolved = true;
+      });
+
+      await vi.advanceTimersByTimeAsync(100);
+      expect(initResolved).toBe(false);
+      expect(categories).toEqual([]);
+
+      await vi.advanceTimersByTimeAsync(200);
+      await initPromise;
+      expect(initResolved).toBe(true);
+
+      expect(categories.length).toBeGreaterThan(0);
+      expect(syncSolveData).toHaveBeenCalledWith('user');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

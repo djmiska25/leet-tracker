@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useToast } from '@/components/ui/toast';
 import { computeDashboardProgress } from '@/domain/dashboardProgress';
 import { loadProfilesForCategories } from '@/domain/goalProfiles';
-import { getCatalogCategories } from '@/domain/catalogCategories';
+import { db } from '@/storage/db';
 import { SOLVES_UPDATED_EVENT } from '@/domain/extensionPoller';
 import type { CategoryProgress } from '@/types/progress';
 import type { GoalProfile } from '@/types/types';
@@ -46,7 +46,7 @@ export function useDashboard() {
           setState((prev) => ({ ...prev, syncing: true }));
         }
 
-        const categories = await getCatalogCategories(true);
+        const categories = await db.getCatalogCategories();
         if (categories.length === 0) {
           toast('No categories found in the problem catalog', 'error');
         }
@@ -104,7 +104,7 @@ export function useDashboard() {
 
   // Reload profiles without recomputing progress (for ProfileManager changes)
   const reloadProfiles = useCallback(async () => {
-    const categories = await getCatalogCategories(false);
+    const categories = await db.getCatalogCategories();
     const { profiles, activeProfileId, prunedGoalCount } =
       await loadProfilesForCategories(categories);
     if (prunedGoalCount > 0) {

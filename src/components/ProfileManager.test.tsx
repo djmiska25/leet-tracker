@@ -5,10 +5,6 @@ import { vi, describe, it, beforeAll, beforeEach, afterEach, expect, Mock } from
 import ProfileManager from './ProfileManager';
 import { db } from '@/storage/db';
 
-vi.mock('@/domain/catalogCategories', () => ({
-  getCatalogCategories: vi.fn().mockResolvedValue(['Array', 'Matrix']),
-}));
-
 describe('<ProfileManager>', () => {
   let setActiveGoalProfileSpy: ReturnType<typeof vi.spyOn>;
 
@@ -40,6 +36,7 @@ describe('<ProfileManager>', () => {
   ] as any;
 
   beforeEach(() => {
+    vi.spyOn(db, 'getCatalogCategories').mockResolvedValue(['Array', 'Matrix']);
     vi.spyOn(db, 'getAllGoalProfiles').mockResolvedValue(profiles);
     vi.spyOn(db, 'getActiveGoalProfileId').mockResolvedValue('default');
     setActiveGoalProfileSpy = vi.spyOn(db, 'setActiveGoalProfile').mockResolvedValue('') as Mock;
