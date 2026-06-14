@@ -97,7 +97,7 @@ For each problem category:
 
 ```bash
 # Clone the repository and install dependencies
-git clone https://github.com/dmiska25/leet-tracker.git
+git clone https://github.com/djmiska25/leet-tracker.git
 cd leet-tracker
 npm install
 
@@ -141,7 +141,7 @@ Feedback:
 
 ## Contact Me
 
-[GitHub](https://github.com/dmiska25) · [LinkedIn](https://www.linkedin.com/in/djmiska25/) · [Website](https://djmiska25.vercel.app/)
+[GitHub](https://github.com/djmiska25) · [LinkedIn](https://www.linkedin.com/in/djmiska25/) · [Website](https://djmiska25.vercel.app/)
 
 ## License
 
