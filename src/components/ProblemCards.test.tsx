@@ -28,4 +28,17 @@ describe('<ProblemCards>', () => {
     expect(screen.queryByText('Fundamental')).not.toBeInTheDocument();
     expect(screen.getByText(/Last solved/)).toBeInTheDocument();
   });
+
+  it('renders a native LeetCode link that opens in a new tab', () => {
+    render(<ProblemCards problems={[baseProblem]} bucket="fundamentals" />);
+
+    expect(screen.getByRole('link', { name: /solve on leetcode/i })).toHaveAttribute(
+      'href',
+      'https://leetcode.com/problems/prob-1/',
+    );
+    expect(screen.getByRole('link', { name: /solve on leetcode/i })).toHaveAttribute(
+      'target',
+      '_blank',
+    );
+  });
 });
