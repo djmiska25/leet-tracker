@@ -1,4 +1,4 @@
-import { allCategories, Category, Problem } from '../types/types';
+import { Category, Problem } from '../types/types';
 import { normalizeDifficulty } from '../utils/difficulty';
 
 /** LeetCode GraphQL proxy endpoint (serverless function) see: api/leetcode-graphql.ts */
@@ -19,14 +19,23 @@ interface RawProblemData {
   /** optional in problems-lite.json */
   description?: string;
   createdAt: number; // epoch time (seconds)
+  updatedAt?: number; // epoch time (seconds)
 }
 
 /* ------------------------------ Tag utilities ------------------------------ */
-const categorySet = new Set(allCategories);
 export function mapTagsToCategories(tags: string[]): Category[] {
-  return tags.filter((tag): tag is (typeof allCategories)[number] =>
-    categorySet.has(tag as (typeof allCategories)[number]),
-  );
+  const seen = new Set<string>();
+  for (const tag of tags) {
+    if (typeof tag !== 'string') continue;
+    const trimmed = tag.trim();
+    if (!trimmed) continue;
+    const normalized = trimmed
+      .replace(/\s+/g, ' ')
+      .toLowerCase()
+      .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+    seen.add(normalized);
+  }
+  return Array.from(seen);
 }
 
 /* ------------------------- Problem catalog (unchanged) ---------------------- */
@@ -47,6 +56,7 @@ export async function fetchProblemCatalog(url: string): Promise<Problem[]> {
     isPaid: p.isPaidOnly,
     isFundamental: p.isFundamental,
     createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
   }));
 }
 

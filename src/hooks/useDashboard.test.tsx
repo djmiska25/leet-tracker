@@ -2,20 +2,21 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useDashboard } from './useDashboard';
 import { computeDashboardProgress } from '@/domain/dashboardProgress';
-import { getActiveOrInitProfile } from '@/domain/goalProfiles';
+import { loadProfilesForCategories } from '@/domain/goalProfiles';
 import { db } from '@/storage/db';
 import type { GoalProfile } from '@/types/types';
 import type { CategoryProgress } from '@/types/progress';
 
+const { trackProfileGoalsIgnored } = vi.hoisted(() => ({
+  trackProfileGoalsIgnored: vi.fn(),
+}));
+vi.mock('@/utils/analytics', () => ({
+  trackProfileGoalsIgnored,
+  trackUnknownDifficulty: vi.fn(),
+}));
+
 vi.mock('@/domain/dashboardProgress');
 vi.mock('@/domain/goalProfiles');
-vi.mock('@/storage/db', () => ({
-  db: {
-    getAllGoalProfiles: vi.fn(),
-    getActiveGoalProfileId: vi.fn(),
-    setActiveGoalProfile: vi.fn(),
-  },
-}));
 
 const mockToast = vi.fn();
 vi.mock('@/components/ui/toast', () => ({
@@ -56,10 +57,14 @@ describe('useDashboard', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(getActiveOrInitProfile).mockResolvedValue(mockProfile);
+    vi.spyOn(db, 'getCatalogCategories').mockResolvedValue(['Array', 'String']);
+    vi.mocked(loadProfilesForCategories).mockResolvedValue({
+      profiles: mockProfiles,
+      activeProfile: mockProfile,
+      activeProfileId: 'test-profile',
+      ignoredGoals: [],
+    });
     vi.mocked(computeDashboardProgress).mockResolvedValue(mockProgress);
-    vi.mocked(db.getAllGoalProfiles).mockResolvedValue(mockProfiles);
-    vi.mocked(db.getActiveGoalProfileId).mockResolvedValue('test-profile');
   });
 
   afterEach(() => {
@@ -82,14 +87,39 @@ describe('useDashboard', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(getActiveOrInitProfile).toHaveBeenCalledTimes(1);
-    expect(db.getAllGoalProfiles).toHaveBeenCalledTimes(1);
-    expect(db.getActiveGoalProfileId).toHaveBeenCalledTimes(1);
+    expect(db.getCatalogCategories).toHaveBeenCalledTimes(1);
+    expect(loadProfilesForCategories).toHaveBeenCalledTimes(1);
     expect(computeDashboardProgress).toHaveBeenCalledWith(mockProfile);
     expect(result.current.progress).toEqual(mockProgress);
     expect(result.current.profile).toEqual(mockProfile);
     expect(result.current.profiles).toEqual(mockProfiles);
     expect(result.current.activeProfileId).toBe('test-profile');
+  });
+
+  it('warns once and summarizes more than five temporarily ignored goals', async () => {
+    vi.mocked(loadProfilesForCategories).mockResolvedValue({
+      profiles: mockProfiles,
+      activeProfile: mockProfile,
+      activeProfileId: 'test-profile',
+      ignoredGoals: ['Graph', 'Matrix', 'Tree', 'Math', 'SQL', 'Geometry', 'Sorting'],
+    });
+
+    const { result } = renderHook(() => useDashboard());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.stringContaining('Graph, Matrix, Tree, Math, SQL, … (+2 more)'),
+      'warning',
+    );
+    expect(trackProfileGoalsIgnored).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await result.current.refreshProgress();
+      await result.current.refreshProgress();
+    });
+
+    expect(mockToast.mock.calls.filter(([, type]) => type === 'warning')).toHaveLength(1);
+    expect(trackProfileGoalsIgnored).toHaveBeenCalledTimes(1);
   });
 
   it('sets loading to false after initial load', async () => {
@@ -242,7 +272,7 @@ describe('useDashboard', () => {
 
     const { unmount } = renderHook(() => useDashboard());
 
-    await waitFor(() => expect(getActiveOrInitProfile).toHaveBeenCalled());
+    await waitFor(() => expect(loadProfilesForCategories).toHaveBeenCalled());
 
     unmount();
 
@@ -266,7 +296,7 @@ describe('useDashboard', () => {
     expect(result.current.progress).toEqual(mockProgress);
   });
 
-  it('updates profile when getActiveOrInitProfile returns new profile', async () => {
+  it('updates profile when loadProfilesForCategories returns new profile', async () => {
     const { result } = renderHook(() => useDashboard());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -280,9 +310,12 @@ describe('useDashboard', () => {
       isEditable: true,
     };
     const updatedProfiles: GoalProfile[] = [...mockProfiles, newProfile];
-    vi.mocked(getActiveOrInitProfile).mockResolvedValue(newProfile);
-    vi.mocked(db.getAllGoalProfiles).mockResolvedValue(updatedProfiles);
-    vi.mocked(db.getActiveGoalProfileId).mockResolvedValue('new-profile');
+    vi.mocked(loadProfilesForCategories).mockResolvedValue({
+      profiles: updatedProfiles,
+      activeProfile: newProfile,
+      activeProfileId: 'new-profile',
+      ignoredGoals: [],
+    });
 
     await act(async () => {
       await result.current.refreshProgress();
@@ -312,8 +345,12 @@ describe('useDashboard', () => {
         isEditable: true,
       },
     ];
-    vi.mocked(db.getAllGoalProfiles).mockResolvedValue(updatedProfiles);
-    vi.mocked(db.getActiveGoalProfileId).mockResolvedValue('third-profile');
+    vi.mocked(loadProfilesForCategories).mockResolvedValue({
+      profiles: updatedProfiles,
+      activeProfile: mockProfile,
+      activeProfileId: 'third-profile',
+      ignoredGoals: [],
+    });
 
     await act(async () => {
       await result.current.reloadProfiles();

@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useToast } from '@/components/ui/toast';
 import { computeDashboardProgress } from '@/domain/dashboardProgress';
-import { getActiveOrInitProfile } from '@/domain/goalProfiles';
-import { SOLVES_UPDATED_EVENT } from '@/domain/extensionPoller';
+import { loadProfilesForCategories } from '@/domain/goalProfiles';
 import { db } from '@/storage/db';
+import { SOLVES_UPDATED_EVENT } from '@/domain/extensionPoller';
+import { trackProfileGoalsIgnored } from '@/utils/analytics';
 import type { CategoryProgress } from '@/types/progress';
 import type { GoalProfile } from '@/types/types';
 
@@ -30,6 +31,7 @@ interface DashboardState {
  */
 export function useDashboard() {
   const toast = useToast();
+  const ignoredGoalsFingerprint = useRef('');
   const [state, setState] = useState<DashboardState>({
     loading: true,
     syncing: false,
@@ -39,6 +41,32 @@ export function useDashboard() {
     activeProfileId: undefined,
   });
 
+  const notifyIgnoredGoals = useCallback(
+    (profile: GoalProfile, ignoredGoals: string[]) => {
+      const fingerprint = `${profile.id}:${ignoredGoals.slice().sort().join('|')}`;
+      if (ignoredGoals.length === 0) {
+        ignoredGoalsFingerprint.current = '';
+        return;
+      }
+      if (fingerprint === ignoredGoalsFingerprint.current) return;
+
+      ignoredGoalsFingerprint.current = fingerprint;
+      const visibleGoals = ignoredGoals.slice(0, 5).join(', ');
+      const remaining = ignoredGoals.length - 5;
+      const suffix = remaining > 0 ? `, … (+${remaining} more)` : '';
+      toast(
+        `Some goals are temporarily hidden because their categories aren't available in the current problem catalog: ${visibleGoals}${suffix}. Try syncing again. If those categories were permanently removed, create a new profile using the available categories.`,
+        'warning',
+      );
+      trackProfileGoalsIgnored({
+        profileId: profile.id,
+        profileName: profile.name,
+        ignoredGoals,
+      });
+    },
+    [toast],
+  );
+
   const refreshProgress = useCallback(
     async (showSyncing = false) => {
       try {
@@ -46,21 +74,24 @@ export function useDashboard() {
           setState((prev) => ({ ...prev, syncing: true }));
         }
 
-        // Get the active profile (this initializes profiles if needed)
-        const profile = await getActiveOrInitProfile();
+        const categories = await db.getCatalogCategories();
+        if (categories.length === 0) {
+          toast('No categories found in the problem catalog', 'error');
+          throw new Error('No categories found in the problem catalog');
+        }
 
-        // Load all profiles and active profile ID
-        const profiles = await db.getAllGoalProfiles();
-        const activeProfileId = await db.getActiveGoalProfileId();
+        const { profiles, activeProfile, activeProfileId, ignoredGoals } =
+          await loadProfilesForCategories(categories);
+        notifyIgnoredGoals(activeProfile, ignoredGoals);
 
         // Compute progress with the profile
-        const progress = await computeDashboardProgress(profile);
+        const progress = await computeDashboardProgress(activeProfile);
 
         setState({
           loading: false,
           syncing: false,
           progress,
-          profile,
+          profile: activeProfile,
           profiles,
           activeProfileId: activeProfileId ?? profiles[0]?.id,
         });
@@ -70,7 +101,7 @@ export function useDashboard() {
         setState((prev) => ({ ...prev, loading: false, syncing: false }));
       }
     },
-    [toast],
+    [notifyIgnoredGoals, toast],
   );
 
   // Initial load (shows loading state)
@@ -96,14 +127,16 @@ export function useDashboard() {
 
   // Reload profiles without recomputing progress (for ProfileManager changes)
   const reloadProfiles = useCallback(async () => {
-    const profiles = await db.getAllGoalProfiles();
-    const activeProfileId = await db.getActiveGoalProfileId();
+    const categories = await db.getCatalogCategories();
+    const { profiles, activeProfile, activeProfileId, ignoredGoals } =
+      await loadProfilesForCategories(categories);
+    notifyIgnoredGoals(activeProfile, ignoredGoals);
     setState((prev) => ({
       ...prev,
       profiles,
       activeProfileId: activeProfileId ?? profiles[0]?.id,
     }));
-  }, []);
+  }, [notifyIgnoredGoals]);
 
   return {
     ...state,

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Tooltip } from 'react-tooltip';
 import { db } from '@/storage/db';
-import type { GoalProfile, Category } from '@/types/types';
-import { allCategories } from '@/types/types';
+import { filterProfileForCategories } from '@/domain/goalProfiles';
+import type { GoalProfile } from '@/types/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, X } from 'lucide-react';
+import { AlertTriangle, Trash2, Plus, X } from 'lucide-react';
 import clsx from 'clsx';
 import { trackProfileChanged } from '@/utils/analytics';
 
@@ -22,11 +23,9 @@ export function ProfileManager({ onDone }: Props) {
   /** creation UI */
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
-  const [targets, setTargets] = useState<Record<Category, number>>(() => {
-    const obj: Record<Category, number> = {} as any;
-    allCategories.forEach((c) => (obj[c] = 0));
-    return obj;
-  });
+  const [categories, setCategories] = useState<string[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [targets, setTargets] = useState<Record<string, number>>({});
 
   /* ---------------- helpers ---------------- */
   const load = async () => {
@@ -39,6 +38,54 @@ export function ProfileManager({ onDone }: Props) {
     load();
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    const loadCategories = async () => {
+      setCategoriesLoading(true);
+      try {
+        const list = await db.getCatalogCategories();
+        if (!mounted) return;
+        setCategories(list);
+        setTargets((prev) => {
+          if (Object.keys(prev).length > 0) return prev;
+          const next: Record<string, number> = {};
+          list.forEach((c) => {
+            next[c] = 0;
+          });
+          return next;
+        });
+      } catch (error) {
+        if (!mounted) return;
+        console.error('Failed to load categories for Profile Manager:', error);
+        setCategories([]);
+      } finally {
+        if (mounted) {
+          setCategoriesLoading(false);
+        }
+      }
+    };
+
+    loadCategories();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (categories.length === 0) return;
+    setTargets((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const category of categories) {
+        if (next[category] === undefined) {
+          next[category] = 0;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [categories]);
+
   // --- Prevent background scrolling while modal is open
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -50,6 +97,7 @@ export function ProfileManager({ onDone }: Props) {
 
   const handleCreate = async () => {
     if (!name.trim()) return;
+    if (!Object.values(targets).some((value) => value > 0)) return;
     const profile: GoalProfile = {
       id: crypto.randomUUID(),
       name: name.trim(),
@@ -58,9 +106,9 @@ export function ProfileManager({ onDone }: Props) {
       description: '',
       goals: Object.fromEntries(
         Object.entries(targets)
-          .filter(([_, v]) => v > 0) // drop 0-percent categories
-          .map(([k, v]) => [k, v / 100]), // convert to 0-1
-      ) as Record<Category, number>,
+          .filter(([, v]) => v > 0)
+          .map(([k, v]) => [k, v / 100]),
+      ),
     };
     await db.saveGoalProfile(profile);
     await db.setActiveGoalProfile(profile.id);
@@ -86,27 +134,46 @@ export function ProfileManager({ onDone }: Props) {
   };
 
   /* ---------------- ui helpers ---------------- */
-  const renderGoals = (goals: Record<string, number>, id: string) => {
+  const renderGoals = (profile: GoalProfile) => {
+    const goals = profile.goals as Record<string, number>;
     const keys = Object.keys(goals).filter((k) => goals[k] > 0);
-    const slice = showMore[id] ? keys : keys.slice(0, 6);
+    const ignoredGoals = new Set(filterProfileForCategories(profile, categories).ignoredGoals);
+    const slice = showMore[profile.id] ? keys : keys.slice(0, 6);
     return (
       <>
         <div className="grid grid-cols-2 gap-2 text-sm">
-          {slice.map((k) => (
-            <div key={k} className="flex justify-between">
-              <span className="text-muted-foreground truncate">{k}</span>
-              <span className="font-medium">{Math.round(goals[k] * 100)}%</span>
-            </div>
-          ))}
+          {slice.map((k) => {
+            const isIgnored = !categoriesLoading && ignoredGoals.has(k);
+            return (
+              <div key={k} className={clsx('flex justify-between', isIgnored && 'opacity-70')}>
+                <span className="flex min-w-0 items-center gap-1 text-muted-foreground">
+                  <span className="truncate">{k}</span>
+                  {isIgnored && (
+                    <button
+                      type="button"
+                      aria-label={`${k} is temporarily ignored`}
+                      data-tooltip-id="ignored-profile-goal"
+                      data-tooltip-content="This category isn't currently available in the problem catalog, so it is temporarily ignored by dashboard calculations. Try syncing again or create a new profile using available categories."
+                      className="shrink-0 text-amber-600"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <AlertTriangle className="h-4 w-4" />
+                    </button>
+                  )}
+                </span>
+                <span className="font-medium">{Math.round(goals[k] * 100)}%</span>
+              </div>
+            );
+          })}
         </div>
         {keys.length > 6 && (
           <Button
             variant="ghost"
             size="sm"
             className="mt-2 text-xs"
-            onClick={() => setShowMore((s) => ({ ...s, [id]: !s[id] }))}
+            onClick={() => setShowMore((s) => ({ ...s, [profile.id]: !s[profile.id] }))}
           >
-            {showMore[id] ? 'Show less' : 'Show more'}
+            {showMore[profile.id] ? 'Show less' : 'Show more'}
           </Button>
         )}
       </>
@@ -161,34 +228,52 @@ export function ProfileManager({ onDone }: Props) {
 
                 {/* targets */}
                 <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2">
-                  {allCategories.map((cat) => (
-                    <div key={cat} className="flex items-center justify-between gap-2">
-                      <label className="text-sm truncate flex-1" htmlFor={`t-${cat}`}>
-                        {cat}
-                      </label>
-                      <input
-                        id={`t-${cat}`}
-                        type="number"
-                        min={0}
-                        max={100}
-                        className="w-20 rounded-md border px-2 py-1 text-right"
-                        value={targets[cat]}
-                        onChange={(e) =>
-                          setTargets((t) => ({
-                            ...t,
-                            [cat]: Math.max(0, Math.min(100, Number(e.target.value) || 0)),
-                          }))
-                        }
-                      />
-                    </div>
-                  ))}
+                  {categoriesLoading && (
+                    <p className="text-sm text-muted-foreground">Loading categories…</p>
+                  )}
+                  {!categoriesLoading && categories.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No categories available yet. Try switching profiles or sync the catalog before
+                      creating one.
+                    </p>
+                  )}
+                  {!categoriesLoading &&
+                    categories.map((cat) => (
+                      <div key={cat} className="flex items-center justify-between gap-2">
+                        <label className="text-sm truncate flex-1" htmlFor={`t-${cat}`}>
+                          {cat}
+                        </label>
+                        <input
+                          id={`t-${cat}`}
+                          type="number"
+                          min={0}
+                          max={100}
+                          className="w-20 rounded-md border px-2 py-1 text-right"
+                          value={targets[cat]}
+                          onChange={(e) =>
+                            setTargets((t) => ({
+                              ...t,
+                              [cat]: Math.max(0, Math.min(100, Number(e.target.value) || 0)),
+                            }))
+                          }
+                        />
+                      </div>
+                    ))}
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2">
                   <Button variant="outline" onClick={() => setCreating(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={handleCreate} disabled={!name.trim()}>
+                  <Button
+                    onClick={handleCreate}
+                    disabled={
+                      !name.trim() ||
+                      categoriesLoading ||
+                      categories.length === 0 ||
+                      !Object.values(targets).some((value) => value > 0)
+                    }
+                  >
                     Create
                   </Button>
                 </div>
@@ -225,13 +310,12 @@ export function ProfileManager({ onDone }: Props) {
                     </button>
                   )}
                 </CardHeader>
-                <CardContent className="px-4 pt-0 pb-4">
-                  {renderGoals(p.goals as Record<string, number>, p.id)}
-                </CardContent>
+                <CardContent className="px-4 pt-0 pb-4">{renderGoals(p)}</CardContent>
               </Card>
             ))}
           </div>
         )}
+        <Tooltip id="ignored-profile-goal" className="z-[60] max-w-xs" />
       </div>
     </div>
   );

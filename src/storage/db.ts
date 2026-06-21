@@ -45,10 +45,10 @@ export interface LeetTrackerDB extends DBSchema {
 type ValidStoreName = keyof LeetTrackerDB;
 
 /* ----------------------------------------------------------------------------
-  DB init (version 5) + one-time migration from legacy global keys
+  DB init (version 6) + one-time migration from legacy global keys
 ---------------------------------------------------------------------------- */
 const initDb = () =>
-  openDB<LeetTrackerDB>('leet-tracker-db', 5, {
+  openDB<LeetTrackerDB>('leet-tracker-db', 6, {
     async upgrade(db, oldVersion, _newVersion, tx) {
       if (oldVersion < 1) {
         // v1 schema
@@ -194,10 +194,38 @@ const initDb = () =>
           }
         }
       }
+
+      if (oldVersion < 6) {
+        // v6 – add multiEntry index for problem tags
+        const problemStore = tx.objectStore('problem-list') as any;
+        if (!problemStore.indexNames.contains('tags')) {
+          problemStore.createIndex('tags', 'tags', { multiEntry: true });
+        }
+
+        // v6 – add index for problem slug lookups in solves
+        const solvesStore = tx.objectStore('solves') as any;
+        if (!solvesStore.indexNames.contains('slug')) {
+          solvesStore.createIndex('slug', 'slug');
+        }
+      }
     },
   });
 
 let dbPromise: Promise<import('idb').IDBPDatabase<LeetTrackerDB>> | null = initDb();
+let categoryCache: string[] | null = null;
+
+const normalizeTags = (tags: string[] | undefined): string[] =>
+  (tags ?? []).map((tag) => tag.trim().toLocaleLowerCase()).filter((tag) => tag.length > 0);
+
+const areTagsEqual = (left: string[] | undefined, right: string[] | undefined): boolean => {
+  const a = new Set(normalizeTags(left));
+  const b = new Set(normalizeTags(right));
+  if (a.size !== b.size) return false;
+  for (const tag of a) {
+    if (!b.has(tag)) return false;
+  }
+  return true;
+};
 
 const getDbPromise = () => {
   if (!dbPromise) {
@@ -227,12 +255,7 @@ export const db = {
   ---------------------------------------------------------------------------- */
 
   async getUserPrefixOrThrow(): Promise<string> {
-    const u = await this.getUsername();
-    // In practice, operations occur post sign-in; prefix with username.
-    // We _should_ never hit this in practice, but handle it gracefully.
-    if (u === undefined) {
-      throw new Error('Username is not set, cannot build namespaced keys');
-    }
+    const u = await this.getUsernameOrThrow();
     return u + '|';
   },
 
@@ -276,6 +299,13 @@ export const db = {
     this._usernameCache = username;
     return username;
   },
+  async getUsernameOrThrow(): Promise<string> {
+    const username = await this.getUsername();
+    if (!username) {
+      throw new Error('Username is not set');
+    }
+    return username;
+  },
   async setUsername(username: string): Promise<string> {
     // Update cache when setting new username
     this._usernameCache = username;
@@ -294,6 +324,7 @@ export const db = {
     return (await getDbPromise()).get('problem-list', slug);
   },
   async addOrUpdateProblem(problem: Problem): Promise<string> {
+    categoryCache = null;
     return (await getDbPromise()).put('problem-list', problem, problem.slug);
   },
   async setProblemListLastUpdated(epochMs: number): Promise<string> {
@@ -301,6 +332,70 @@ export const db = {
   },
   async getProblemListLastUpdated(): Promise<number | undefined> {
     return (await getDbPromise()).get('problem-metadata', 'lastUpdated');
+  },
+
+  async getCatalogCategories(): Promise<string[]> {
+    if (categoryCache) return categoryCache;
+
+    const idb = await getDbPromise();
+    const tx = idb.transaction('problem-list', 'readonly');
+    const store = tx.objectStore('problem-list') as any;
+    const index = store.index('tags');
+    const keys: string[] = [];
+    for (let cursor = await index.openKeyCursor(); cursor; cursor = await cursor.continue()) {
+      if (typeof cursor.key === 'string' && cursor.key.length > 0) {
+        keys.push(cursor.key);
+      }
+    }
+    const unique = Array.from(new Set(keys)).sort((a, b) => a.localeCompare(b));
+    categoryCache = unique;
+    return unique;
+  },
+
+  invalidateCategoryCache(): void {
+    categoryCache = null;
+  },
+
+  async updateSolveMetadataFromCatalog(problems: Problem[]): Promise<number> {
+    if (problems.length === 0) return 0;
+
+    const problemMap = new Map(problems.map((problem) => [problem.slug, problem] as const));
+
+    return this.withTransaction(
+      'solves',
+      async (tx) => {
+        const store = tx.objectStore('solves') as any;
+        const index = store.index('slug');
+        let updated = 0;
+
+        for (const [slug, problem] of problemMap) {
+          for (
+            let cursor = await index.openCursor(slug);
+            cursor;
+            cursor = await cursor.continue()
+          ) {
+            const solve = cursor.value as Solve;
+
+            const nextTags = problem.tags;
+            const nextDifficulty = problem.difficulty;
+            const tagsChanged = !areTagsEqual(solve.tags, nextTags);
+            const difficultyChanged = solve.difficulty !== nextDifficulty;
+
+            if (tagsChanged || difficultyChanged) {
+              await cursor.update({
+                ...solve,
+                tags: nextTags,
+                difficulty: nextDifficulty,
+              });
+              updated += 1;
+            }
+          }
+        }
+
+        return updated;
+      },
+      'readwrite',
+    );
   },
 
   // Solves (per user)

@@ -119,6 +119,12 @@ export const trackRecommendationClicked = (slug: string, bucket: string, tag: st
 export const trackProfileChanged = (newProfileId: string) =>
   posthog.capture('profile_changed', { newProfileId });
 
+export const trackProfileGoalsIgnored = (payload: {
+  profileId: string;
+  profileName: string;
+  ignoredGoals: string[];
+}) => posthog.capture('profile_goals_ignored', payload);
+
 export const trackExtensionDetected = () => posthog.capture('extension_detected');
 
 export const trackTourStarted = () => posthog.capture('tour_started');

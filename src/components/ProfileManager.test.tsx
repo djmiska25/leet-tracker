@@ -36,6 +36,7 @@ describe('<ProfileManager>', () => {
   ] as any;
 
   beforeEach(() => {
+    vi.spyOn(db, 'getCatalogCategories').mockResolvedValue(['Array', 'Matrix']);
     vi.spyOn(db, 'getAllGoalProfiles').mockResolvedValue(profiles);
     vi.spyOn(db, 'getActiveGoalProfileId').mockResolvedValue('default');
     setActiveGoalProfileSpy = vi.spyOn(db, 'setActiveGoalProfile').mockResolvedValue('') as Mock;
@@ -81,5 +82,24 @@ describe('<ProfileManager>', () => {
     await user.click(cancelBtn);
 
     await waitFor(() => expect(screen.queryByLabelText(/profile name/i)).not.toBeInTheDocument());
+  });
+
+  it('marks unavailable goals without hiding them', async () => {
+    vi.mocked(db.getAllGoalProfiles).mockResolvedValueOnce([
+      {
+        ...profiles[0],
+        goals: { Array: 0.6, Graph: 0.7 },
+      },
+    ]);
+
+    render(<ProfileManager onDone={onDone} />);
+
+    expect(await screen.findByText('Graph')).toBeInTheDocument();
+    expect(screen.getByText('70%')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Graph is temporarily ignored' })).toHaveAttribute(
+      'data-tooltip-content',
+      expect.stringContaining('temporarily ignored'),
+    );
+    expect(screen.queryByRole('button', { name: 'Array is temporarily ignored' })).toBeNull();
   });
 });

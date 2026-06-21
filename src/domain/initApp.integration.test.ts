@@ -25,9 +25,9 @@ describe('initApp (integration with fake‑indexeddb)', () => {
         return new Response(fileContents, {
           headers: { 'Content-Type': 'application/json' },
         });
-      } else if (input === '/default-goal-profiles.json') {
-        // Serve default-goal-profiles.json so initApp can seed the default profile
-        const filePath = path.join(__dirname, '../../public/default-goal-profiles.json');
+      } else if (input === '/system-goal-profiles.json') {
+        // Serve system-goal-profiles.json so initApp can seed the default profile
+        const filePath = path.join(__dirname, '../../public/system-goal-profiles.json');
         const fileContents = await readFile(filePath, 'utf-8');
         return new Response(fileContents, {
           headers: { 'Content-Type': 'application/json' },

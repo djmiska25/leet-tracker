@@ -6,28 +6,36 @@ import { Difficulty } from '@/types/types';
 /*  mapTagsToCategories                                                */
 /* ------------------------------------------------------------------ */
 describe('mapTagsToCategories', () => {
-  it('includes only valid categories', () => {
+  it('preserves order of tags', () => {
     const input = ['Array', 'Tree', 'Graph'];
     expect(mapTagsToCategories(input)).toEqual(['Array', 'Tree', 'Graph']);
   });
 
-  it('excludes unknown or misspelled categories', () => {
-    const input = ['Array', 'Graphs', 'Dynamic Programming', 'HashMap'];
+  it('removes duplicates and empty values', () => {
+    const input = ['Array', ' ', 'Array', 'Dynamic Programming', ''];
     expect(mapTagsToCategories(input)).toEqual(['Array', 'Dynamic Programming']);
-  });
-
-  it('returns empty array when no valid categories are given', () => {
-    const input = ['Graphs', 'HashMaps', 'Quantum'];
-    expect(mapTagsToCategories(input)).toEqual([]);
   });
 
   it('handles an empty input array', () => {
     expect(mapTagsToCategories([])).toEqual([]);
   });
 
-  it('preserves order of valid tags', () => {
-    const input = ['Math', 'Array', 'Queue'];
-    expect(mapTagsToCategories(input)).toEqual(['Math', 'Array', 'Queue']);
+  it('normalizes tags to title case', () => {
+    const input = [
+      'array',
+      '  sliding   window ',
+      'HEAP (PRIORITY QUEUE)',
+      'depth-first search',
+      'breadth-first search',
+    ];
+
+    expect(mapTagsToCategories(input)).toEqual([
+      'Array',
+      'Sliding Window',
+      'Heap (Priority Queue)',
+      'Depth-First Search',
+      'Breadth-First Search',
+    ]);
   });
 });
 
@@ -53,6 +61,7 @@ describe('fetchProblemCatalog', () => {
         dislikes: 2000,
         description: '<p>desc</p>',
         createdAt: 1746308137,
+        updatedAt: 1746309999,
       },
     ];
 
@@ -75,6 +84,7 @@ describe('fetchProblemCatalog', () => {
         description: '<p>desc</p>',
         tags: ['Array', 'Hash Table'],
         createdAt: 1746308137,
+        updatedAt: 1746309999,
       },
     ]);
   });
