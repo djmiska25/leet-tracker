@@ -2,7 +2,6 @@ import { ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { trackRecommendationClicked } from '@/utils/analytics';
-import { Button } from '@/components/ui/button';
 import { useTimeAgo } from '@/hooks/useTimeAgo';
 import type { ProblemLite } from '@/types/recommendation';
 
@@ -70,27 +69,18 @@ export default function ProblemCards({ problems, bucket, showTags = true }: Prob
             {bucket === 'refresh' && p.lastSolved && <LastSolvedLabel ts={p.lastSolved} />}
           </CardContent>
           <CardFooter className="p-4 pt-2 mt-auto flex justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1"
-              onClick={() => {
-                console.info('[ProblemCards] Solve on LeetCode clicked', {
-                  slug: p.slug,
-                  bucket,
-                });
-                trackRecommendationClicked(p.slug, bucket, (p.tags && p.tags[0]) || 'unknown');
-                const popup = window.open(`https://leetcode.com/problems/${p.slug}`, '_blank');
-                if (popup === null) {
-                  console.error('[ProblemCards] LeetCode popup was blocked by the browser');
-                } else {
-                  console.info('[ProblemCards] LeetCode popup opened successfully');
-                }
-              }}
+            <a
+              href={`https://leetcode.com/problems/${p.slug}/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary gap-1"
+              onClick={() =>
+                trackRecommendationClicked(p.slug, bucket, (p.tags && p.tags[0]) || 'unknown')
+              }
             >
               <ExternalLink className="h-4 w-4" />
               Solve on LeetCode
-            </Button>
+            </a>
           </CardFooter>
         </Card>
       ))}
