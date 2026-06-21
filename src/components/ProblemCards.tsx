@@ -75,8 +75,17 @@ export default function ProblemCards({ problems, bucket, showTags = true }: Prob
               size="sm"
               className="gap-1"
               onClick={() => {
+                console.info('[ProblemCards] Solve on LeetCode clicked', {
+                  slug: p.slug,
+                  bucket,
+                });
                 trackRecommendationClicked(p.slug, bucket, (p.tags && p.tags[0]) || 'unknown');
-                window.open(`https://leetcode.com/problems/${p.slug}`, '_blank');
+                const popup = window.open(`https://leetcode.com/problems/${p.slug}`, '_blank');
+                if (popup === null) {
+                  console.error('[ProblemCards] LeetCode popup was blocked by the browser');
+                } else {
+                  console.info('[ProblemCards] LeetCode popup opened successfully');
+                }
               }}
             >
               <ExternalLink className="h-4 w-4" />
