@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fetchSystemProfiles, loadProfilesForCategories } from './goalProfiles';
+import {
+  fetchSystemProfiles,
+  filterProfileForCategories,
+  loadProfilesForCategories,
+} from './goalProfiles';
 import { db } from '@/storage/db';
 
 vi.mock('@/storage/db');
-vi.mock('@/utils/analytics', () => ({
-  trackProfilePruned: vi.fn(),
-}));
 
 describe('loadProfilesForCategories', () => {
   beforeEach(() => {
@@ -288,7 +289,7 @@ describe('loadProfilesForCategories', () => {
     expect(db.setAppPref).not.toHaveBeenCalled();
   });
 
-  it('prunes goals using exact category matches', async () => {
+  it('temporarily ignores unavailable goals without changing the stored profile', async () => {
     const defaults = [
       {
         id: 'default',
@@ -326,13 +327,31 @@ describe('loadProfilesForCategories', () => {
 
     const result = await loadProfilesForCategories(['Array']);
 
-    expect(result.prunedGoalCount).toBe(2);
-    expect(db.saveGoalProfile).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: 'default',
-        goals: { Array: 0.5 },
-      }),
-    );
+    expect(result.ignoredGoals).toEqual(['array', 'Hash Table']);
+    expect(result.activeProfile.goals).toEqual({ Array: 0.5 });
+    expect(result.profiles[0]?.goals).toEqual({ Array: 0.5, array: 0.4, 'Hash Table': 0.2 });
+    expect(db.saveGoalProfile).not.toHaveBeenCalled();
+  });
+});
+
+describe('filterProfileForCategories', () => {
+  const profile = {
+    id: 'custom',
+    name: 'Custom',
+    createdAt: 'now',
+    isEditable: true,
+    goals: { Array: 0.6, Graph: 0.7 },
+  };
+
+  it('restores a temporarily ignored goal when its category returns', () => {
+    const unavailable = filterProfileForCategories(profile, ['Array']);
+    const availableAgain = filterProfileForCategories(profile, ['Array', 'Graph']);
+
+    expect(unavailable.effectiveProfile.goals).toEqual({ Array: 0.6 });
+    expect(unavailable.ignoredGoals).toEqual(['Graph']);
+    expect(availableAgain.effectiveProfile.goals).toEqual({ Array: 0.6, Graph: 0.7 });
+    expect(availableAgain.ignoredGoals).toEqual([]);
+    expect(profile.goals).toEqual({ Array: 0.6, Graph: 0.7 });
   });
 });
 

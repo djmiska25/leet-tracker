@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useToast } from '@/components/ui/toast';
 import { computeDashboardProgress } from '@/domain/dashboardProgress';
 import { loadProfilesForCategories } from '@/domain/goalProfiles';
 import { db } from '@/storage/db';
 import { SOLVES_UPDATED_EVENT } from '@/domain/extensionPoller';
+import { trackProfileGoalsIgnored } from '@/utils/analytics';
 import type { CategoryProgress } from '@/types/progress';
 import type { GoalProfile } from '@/types/types';
 
@@ -30,6 +31,7 @@ interface DashboardState {
  */
 export function useDashboard() {
   const toast = useToast();
+  const ignoredGoalsFingerprint = useRef('');
   const [state, setState] = useState<DashboardState>({
     loading: true,
     syncing: false,
@@ -38,6 +40,32 @@ export function useDashboard() {
     profiles: [],
     activeProfileId: undefined,
   });
+
+  const notifyIgnoredGoals = useCallback(
+    (profile: GoalProfile, ignoredGoals: string[]) => {
+      const fingerprint = `${profile.id}:${ignoredGoals.slice().sort().join('|')}`;
+      if (ignoredGoals.length === 0) {
+        ignoredGoalsFingerprint.current = '';
+        return;
+      }
+      if (fingerprint === ignoredGoalsFingerprint.current) return;
+
+      ignoredGoalsFingerprint.current = fingerprint;
+      const visibleGoals = ignoredGoals.slice(0, 5).join(', ');
+      const remaining = ignoredGoals.length - 5;
+      const suffix = remaining > 0 ? `, … (+${remaining} more)` : '';
+      toast(
+        `Some goals are temporarily hidden because their categories aren't available in the current problem catalog: ${visibleGoals}${suffix}. Try syncing again. If those categories were permanently removed, create a new profile using the available categories.`,
+        'warning',
+      );
+      trackProfileGoalsIgnored({
+        profileId: profile.id,
+        profileName: profile.name,
+        ignoredGoals,
+      });
+    },
+    [toast],
+  );
 
   const refreshProgress = useCallback(
     async (showSyncing = false) => {
@@ -52,15 +80,9 @@ export function useDashboard() {
           throw new Error('No categories found in the problem catalog');
         }
 
-        const { profiles, activeProfile, activeProfileId, prunedGoalCount } =
+        const { profiles, activeProfile, activeProfileId, ignoredGoals } =
           await loadProfilesForCategories(categories);
-
-        if (prunedGoalCount > 0) {
-          toast(
-            'Some profile goals were removed because those categories no longer exist in the catalog.',
-            'error',
-          );
-        }
+        notifyIgnoredGoals(activeProfile, ignoredGoals);
 
         // Compute progress with the profile
         const progress = await computeDashboardProgress(activeProfile);
@@ -79,7 +101,7 @@ export function useDashboard() {
         setState((prev) => ({ ...prev, loading: false, syncing: false }));
       }
     },
-    [toast],
+    [notifyIgnoredGoals, toast],
   );
 
   // Initial load (shows loading state)
@@ -106,20 +128,15 @@ export function useDashboard() {
   // Reload profiles without recomputing progress (for ProfileManager changes)
   const reloadProfiles = useCallback(async () => {
     const categories = await db.getCatalogCategories();
-    const { profiles, activeProfileId, prunedGoalCount } =
+    const { profiles, activeProfile, activeProfileId, ignoredGoals } =
       await loadProfilesForCategories(categories);
-    if (prunedGoalCount > 0) {
-      toast(
-        'Some profile goals were removed because those categories no longer exist in the catalog.',
-        'error',
-      );
-    }
+    notifyIgnoredGoals(activeProfile, ignoredGoals);
     setState((prev) => ({
       ...prev,
       profiles,
       activeProfileId: activeProfileId ?? profiles[0]?.id,
     }));
-  }, [toast]);
+  }, [notifyIgnoredGoals]);
 
   return {
     ...state,

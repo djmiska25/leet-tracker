@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Tooltip } from 'react-tooltip';
 import { db } from '@/storage/db';
+import { filterProfileForCategories } from '@/domain/goalProfiles';
 import type { GoalProfile } from '@/types/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, X } from 'lucide-react';
+import { AlertTriangle, Trash2, Plus, X } from 'lucide-react';
 import clsx from 'clsx';
 import { trackProfileChanged } from '@/utils/analytics';
 
@@ -132,27 +134,46 @@ export function ProfileManager({ onDone }: Props) {
   };
 
   /* ---------------- ui helpers ---------------- */
-  const renderGoals = (goals: Record<string, number>, id: string) => {
+  const renderGoals = (profile: GoalProfile) => {
+    const goals = profile.goals as Record<string, number>;
     const keys = Object.keys(goals).filter((k) => goals[k] > 0);
-    const slice = showMore[id] ? keys : keys.slice(0, 6);
+    const ignoredGoals = new Set(filterProfileForCategories(profile, categories).ignoredGoals);
+    const slice = showMore[profile.id] ? keys : keys.slice(0, 6);
     return (
       <>
         <div className="grid grid-cols-2 gap-2 text-sm">
-          {slice.map((k) => (
-            <div key={k} className="flex justify-between">
-              <span className="text-muted-foreground truncate">{k}</span>
-              <span className="font-medium">{Math.round(goals[k] * 100)}%</span>
-            </div>
-          ))}
+          {slice.map((k) => {
+            const isIgnored = !categoriesLoading && ignoredGoals.has(k);
+            return (
+              <div key={k} className={clsx('flex justify-between', isIgnored && 'opacity-70')}>
+                <span className="flex min-w-0 items-center gap-1 text-muted-foreground">
+                  <span className="truncate">{k}</span>
+                  {isIgnored && (
+                    <button
+                      type="button"
+                      aria-label={`${k} is temporarily ignored`}
+                      data-tooltip-id="ignored-profile-goal"
+                      data-tooltip-content="This category isn't currently available in the problem catalog, so it is temporarily ignored by dashboard calculations. Try syncing again or create a new profile using available categories."
+                      className="shrink-0 text-amber-600"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <AlertTriangle className="h-4 w-4" />
+                    </button>
+                  )}
+                </span>
+                <span className="font-medium">{Math.round(goals[k] * 100)}%</span>
+              </div>
+            );
+          })}
         </div>
         {keys.length > 6 && (
           <Button
             variant="ghost"
             size="sm"
             className="mt-2 text-xs"
-            onClick={() => setShowMore((s) => ({ ...s, [id]: !s[id] }))}
+            onClick={() => setShowMore((s) => ({ ...s, [profile.id]: !s[profile.id] }))}
           >
-            {showMore[id] ? 'Show less' : 'Show more'}
+            {showMore[profile.id] ? 'Show less' : 'Show more'}
           </Button>
         )}
       </>
@@ -289,13 +310,12 @@ export function ProfileManager({ onDone }: Props) {
                     </button>
                   )}
                 </CardHeader>
-                <CardContent className="px-4 pt-0 pb-4">
-                  {renderGoals(p.goals as Record<string, number>, p.id)}
-                </CardContent>
+                <CardContent className="px-4 pt-0 pb-4">{renderGoals(p)}</CardContent>
               </Card>
             ))}
           </div>
         )}
+        <Tooltip id="ignored-profile-goal" className="z-[60] max-w-xs" />
       </div>
     </div>
   );

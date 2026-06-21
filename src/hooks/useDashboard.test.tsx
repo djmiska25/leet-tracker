@@ -7,6 +7,14 @@ import { db } from '@/storage/db';
 import type { GoalProfile } from '@/types/types';
 import type { CategoryProgress } from '@/types/progress';
 
+const { trackProfileGoalsIgnored } = vi.hoisted(() => ({
+  trackProfileGoalsIgnored: vi.fn(),
+}));
+vi.mock('@/utils/analytics', () => ({
+  trackProfileGoalsIgnored,
+  trackUnknownDifficulty: vi.fn(),
+}));
+
 vi.mock('@/domain/dashboardProgress');
 vi.mock('@/domain/goalProfiles');
 
@@ -54,7 +62,7 @@ describe('useDashboard', () => {
       profiles: mockProfiles,
       activeProfile: mockProfile,
       activeProfileId: 'test-profile',
-      prunedGoalCount: 0,
+      ignoredGoals: [],
     });
     vi.mocked(computeDashboardProgress).mockResolvedValue(mockProgress);
   });
@@ -86,6 +94,32 @@ describe('useDashboard', () => {
     expect(result.current.profile).toEqual(mockProfile);
     expect(result.current.profiles).toEqual(mockProfiles);
     expect(result.current.activeProfileId).toBe('test-profile');
+  });
+
+  it('warns once and summarizes more than five temporarily ignored goals', async () => {
+    vi.mocked(loadProfilesForCategories).mockResolvedValue({
+      profiles: mockProfiles,
+      activeProfile: mockProfile,
+      activeProfileId: 'test-profile',
+      ignoredGoals: ['Graph', 'Matrix', 'Tree', 'Math', 'SQL', 'Geometry', 'Sorting'],
+    });
+
+    const { result } = renderHook(() => useDashboard());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.stringContaining('Graph, Matrix, Tree, Math, SQL, … (+2 more)'),
+      'warning',
+    );
+    expect(trackProfileGoalsIgnored).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await result.current.refreshProgress();
+      await result.current.refreshProgress();
+    });
+
+    expect(mockToast.mock.calls.filter(([, type]) => type === 'warning')).toHaveLength(1);
+    expect(trackProfileGoalsIgnored).toHaveBeenCalledTimes(1);
   });
 
   it('sets loading to false after initial load', async () => {
@@ -280,7 +314,7 @@ describe('useDashboard', () => {
       profiles: updatedProfiles,
       activeProfile: newProfile,
       activeProfileId: 'new-profile',
-      prunedGoalCount: 0,
+      ignoredGoals: [],
     });
 
     await act(async () => {
@@ -315,7 +349,7 @@ describe('useDashboard', () => {
       profiles: updatedProfiles,
       activeProfile: mockProfile,
       activeProfileId: 'third-profile',
-      prunedGoalCount: 0,
+      ignoredGoals: [],
     });
 
     await act(async () => {

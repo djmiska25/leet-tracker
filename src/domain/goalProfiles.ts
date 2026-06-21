@@ -1,6 +1,5 @@
 import { GoalProfile } from '../types/types';
 import { db } from '../storage/db';
-import { trackProfilePruned } from '@/utils/analytics';
 
 /**
  * Fetch system goal profiles from the public JSON file.
@@ -56,27 +55,30 @@ export async function fetchSystemProfiles(): Promise<{
   }
 }
 
-function pruneGoals(
+export function filterProfileForCategories(
   profile: GoalProfile,
-  categorySet: Set<string>,
+  categories: string[],
 ): {
-  profile: GoalProfile;
-  removedCount: number;
+  effectiveProfile: GoalProfile;
+  ignoredGoals: string[];
 } {
-  const entries = Object.entries(profile.goals ?? {});
-  if (!entries.length) return { profile, removedCount: 0 };
-
-  const kept: Array<[string, number]> = [];
+  const categorySet = new Set(categories);
+  const effectiveGoals: Array<[string, number]> = [];
+  const ignoredGoals: string[] = [];
+  const entries = Object.entries(profile.goals ?? {}).filter(
+    (entry): entry is [string, number] => typeof entry[1] === 'number' && entry[1] > 0,
+  );
   for (const [key, value] of entries) {
-    if (!categorySet.has(key) || !value) continue;
-    kept.push([key, value]);
+    if (categorySet.has(key)) {
+      effectiveGoals.push([key, value]);
+    } else {
+      ignoredGoals.push(key);
+    }
   }
-  const removedCount = entries.length - kept.length;
-  if (removedCount === 0) return { profile, removedCount: 0 };
 
   return {
-    profile: { ...profile, goals: Object.fromEntries(kept) },
-    removedCount,
+    effectiveProfile: { ...profile, goals: Object.fromEntries(effectiveGoals) },
+    ignoredGoals,
   };
 }
 
@@ -84,7 +86,7 @@ export async function loadProfilesForCategories(categories: string[]): Promise<{
   profiles: GoalProfile[];
   activeProfile: GoalProfile;
   activeProfileId: string;
-  prunedGoalCount: number;
+  ignoredGoals: string[];
 }> {
   const { profiles: systemProfiles, systemVersion } = await fetchSystemProfiles();
   const existing = await db.getAllGoalProfiles();
@@ -135,34 +137,7 @@ export async function loadProfilesForCategories(categories: string[]): Promise<{
   }
 
   // reload profiles after potential updates/creations
-  let profiles = await db.getAllGoalProfiles();
-
-  // prune goals based on categories (handles case where leetcode updates catalog and some categories are removed)
-  let prunedGoalCount = 0;
-  const categorySet = new Set(categories);
-  const updatedProfiles: GoalProfile[] = [];
-  for (const profile of profiles) {
-    const { profile: nextProfile, removedCount } = pruneGoals(profile, categorySet);
-    if (removedCount > 0) {
-      const previousGoals = Object.fromEntries(
-        Object.entries(profile.goals ?? {}).filter(([, value]) => typeof value === 'number'),
-      ) as Record<string, number>;
-      const removedGoals = Object.keys(previousGoals).filter(
-        (key) => !(nextProfile.goals && key in nextProfile.goals),
-      );
-      trackProfilePruned({
-        profileId: profile.id,
-        profileName: profile.name,
-        previousGoals,
-        removedGoals,
-        categories: categories.slice(),
-      });
-      await db.saveGoalProfile(nextProfile);
-      prunedGoalCount += removedCount;
-    }
-    updatedProfiles.push(nextProfile);
-  }
-  profiles = updatedProfiles;
+  const profiles = await db.getAllGoalProfiles();
 
   // resolve active profile
   let activeProfileId = await db.getActiveGoalProfileId();
@@ -174,10 +149,12 @@ export async function loadProfilesForCategories(categories: string[]): Promise<{
     activeProfile = fallbackProfile;
   }
 
+  const filtered = filterProfileForCategories(activeProfile, categories);
+
   return {
     profiles,
-    activeProfile,
+    activeProfile: filtered.effectiveProfile,
     activeProfileId,
-    prunedGoalCount,
+    ignoredGoals: filtered.ignoredGoals,
   };
 }
