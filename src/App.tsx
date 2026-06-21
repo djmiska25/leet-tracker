@@ -4,6 +4,7 @@ import { useInitApp } from '@/hooks/useInitApp';
 import Dashboard from '@/components/Dashboard';
 import SignIn from '@/components/SignIn';
 import SolveHistory from '@/components/solveHistory/SolveHistory';
+import ProblemDetails from '@/components/problemDetails/ProblemDetails';
 import HeaderNav from '@/components/HeaderNav';
 import TutorialPrompt from '@/components/TutorialPrompt';
 import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
@@ -39,6 +40,12 @@ function App() {
   const isHistory = location.pathname.startsWith('/solve-history');
   const historyMatch = matchPath({ path: '/solve-history/:solveId', end: true }, location.pathname);
   const solveId = historyMatch?.params.solveId;
+  const isProblemDetails = location.pathname.startsWith('/problem-details');
+  const problemDetailsMatch = matchPath(
+    { path: '/problem-details/:slug', end: true },
+    location.pathname,
+  );
+  const problemSlug = problemDetailsMatch?.params.slug;
 
   const tutorial = useTutorial();
   const [showPrompt, setShowPrompt] = useState(false);
@@ -242,6 +249,9 @@ function App() {
       <div style={{ display: isHistory ? 'block' : 'none' }}>
         <SolveHistory activeSolveId={solveId} />
       </div>
+      <div style={{ display: isProblemDetails ? 'block' : 'none' }}>
+        <ProblemDetails activeSlug={problemSlug} />
+      </div>
 
       {/* Keep Routes for URL side-effects or future dedicated routes, but main views are handled above */}
       <Routes>
@@ -249,6 +259,8 @@ function App() {
         <Route path="/dashboard" element={null} />
         <Route path="/solve-history" element={null} />
         <Route path="/solve-history/:solveId" element={null} />
+        <Route path="/problem-details" element={null} />
+        <Route path="/problem-details/:slug" element={null} />
       </Routes>
     </>
   );

@@ -65,6 +65,12 @@ export default function HeaderNav() {
               data-tour="nav-history"
               isActive={currentPath.startsWith('/solve-history')}
             />
+            <NavBtn
+              path="/problem-details"
+              label="Problem Details"
+              className="problem-details-nav"
+              isActive={currentPath.startsWith('/problem-details')}
+            />
           </div>
 
           <ThemeToggle />

@@ -16,6 +16,7 @@ vi.mock('@/storage/db', () => ({
     getActiveGoalProfileId: vi.fn(),
     getAllSolvesSorted: vi.fn(),
     getProblemListLastUpdated: vi.fn(),
+    getAllProblems: vi.fn(),
   },
   getTutorialActive: vi.fn(),
   setTutorialActive: vi.fn(),
@@ -77,6 +78,7 @@ describe('App Tutorial Integration', () => {
     (db.db.getActiveGoalProfileId as Mock).mockResolvedValue(null);
     (db.db.getAllSolvesSorted as Mock).mockResolvedValue([]);
     (db.db.getProblemListLastUpdated as Mock).mockResolvedValue(MOCK_NOW); // Mock catalog as recently updated
+    (db.db.getAllProblems as Mock).mockResolvedValue([]); // Mock problem catalog
 
     // Mock useInitApp to return signed-in user
     mockUseInitApp.mockReturnValue({

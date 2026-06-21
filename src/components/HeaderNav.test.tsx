@@ -92,6 +92,40 @@ describe('<HeaderNav>', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
   });
 
+  it('navigates to "problem-details" when Problem Details nav is clicked', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter>
+        <HeaderNav />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /problem details/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('/problem-details');
+  });
+
+  /* ------------------------------------------------------------ */
+  /*  Help / Tutorial replay                                      */
+  /* ------------------------------------------------------------ */
+  it('dispatches replay tour event when Help button is clicked', async () => {
+    const user = userEvent.setup();
+    const eventSpy = vi.fn();
+
+    window.addEventListener('leet:replay-tour', eventSpy);
+
+    render(
+      <MemoryRouter>
+        <HeaderNav />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /help/i }));
+    expect(eventSpy).toHaveBeenCalled();
+
+    window.removeEventListener('leet:replay-tour', eventSpy);
+  });
+
   /* ------------------------------------------------------------ */
   /*  Sign‑out behaviour                                          */
   /* ------------------------------------------------------------ */

@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ProfileManager } from "@/components/profile-manager"
 import { ExtensionWarning } from "@/components/extension-warning"
 import SolveHistory from "@/components/solve-history"
+import ProblemDetails from "@/components/problem-details"
 import { useTheme } from "next-themes"
 import { ThemeToggle } from "@/components/theme-toggle"
 
@@ -324,6 +325,56 @@ export default function Dashboard() {
     return <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8">Loading...</div>
   }
 
+  // Render problem details page
+  if (activeTab === "problems") {
+    return (
+      <div className="min-h-screen bg-background">
+        {/* Navigation */}
+        <div className="border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="flex h-16 items-center px-0">
+              <div className="flex items-center gap-4">
+                <h2 className="text-lg font-semibold">LeetTracker</h2>
+              </div>
+              <div className="ml-auto flex items-center gap-4">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="mr-4">
+                  <TabsList>
+                    <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+                    <TabsTrigger value="history">Solve History</TabsTrigger>
+                    <TabsTrigger value="problems">Problem Details</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                <ThemeToggle />
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    if (window.confirm("Are you sure you want to sign out? Your synced progress will be deleted.")) {
+                      console.log("User signed out")
+                    }
+                  }}
+                >
+                  Sign Out
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <ProblemDetails />
+
+        {/* DEV Reset Onboarding Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleResetOnboarding}
+          className="fixed bottom-4 right-4 z-50 border-dashed border-2 border-yellow-500 text-yellow-600 hover:bg-yellow-500 hover:text-white bg-transparent gap-2"
+        >
+          <RotateCcw className="h-4 w-4" />
+          DEV: Reset Onboarding
+        </Button>
+      </div>
+    )
+  }
+
   // Render solve history page
   if (activeTab === "history") {
     return (
@@ -340,6 +391,7 @@ export default function Dashboard() {
                   <TabsList>
                     <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                     <TabsTrigger value="history">Solve History</TabsTrigger>
+                    <TabsTrigger value="problems">Problem Details</TabsTrigger>
                   </TabsList>
                 </Tabs>
                 <ThemeToggle />
@@ -395,6 +447,7 @@ export default function Dashboard() {
                 <TabsList>
                   <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                   <TabsTrigger value="history">Solve History</TabsTrigger>
+                  <TabsTrigger value="problems">Problem Details</TabsTrigger>
                 </TabsList>
               </Tabs>
               <ThemeToggle />

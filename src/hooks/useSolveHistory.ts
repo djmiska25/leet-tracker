@@ -31,6 +31,8 @@ export function useSolveHistory() {
   const refresh = async () => {
     setState((s) => ({ ...s, loading: true }));
     await load();
+    // Notify other components that solves have been updated
+    window.dispatchEvent(new CustomEvent(SOLVES_UPDATED_EVENT, { detail: { count: 0 } }));
   };
 
   // Listen for updates from the global poller (managed by App.tsx)

@@ -2,6 +2,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import { vi, describe, it, beforeEach, afterEach, expect } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
+import React from 'react';
 
 import SolveDetail from './SolveDetail';
 import { db, AI_FEEDBACK_USED_KEY } from '@/storage/db';
@@ -48,6 +50,11 @@ const baseSolve: Solve = {
   tags: ['Array'] as Category[],
 };
 
+// Helper to wrap component with Router context
+function renderWithRouter(ui: React.ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
+
 describe('<SolveDetail>', () => {
   const onSaved = vi.fn();
   const onShowList = vi.fn();
@@ -87,7 +94,7 @@ describe('<SolveDetail>', () => {
 
   it('allows editing and saving submission code', async () => {
     const user = userEvent.setup();
-    render(
+    renderWithRouter(
       <SolveDetail
         solve={baseSolve}
         onSaved={onSaved}
@@ -115,7 +122,7 @@ describe('<SolveDetail>', () => {
 
   it('shows an error toast if code is empty when saving', async () => {
     const user = userEvent.setup();
-    render(
+    renderWithRouter(
       <SolveDetail
         solve={baseSolve}
         onSaved={onSaved}
@@ -143,7 +150,7 @@ describe('<SolveDetail>', () => {
   it('handles save failure gracefully for code', async () => {
     saveSolve.mockRejectedValue(new Error('Save failed'));
     const user = userEvent.setup();
-    render(
+    renderWithRouter(
       <SolveDetail
         solve={baseSolve}
         onSaved={onSaved}
@@ -171,7 +178,7 @@ describe('<SolveDetail>', () => {
 
   it('allows adding solve details', async () => {
     const user = userEvent.setup();
-    render(
+    renderWithRouter(
       <SolveDetail
         solve={{ ...baseSolve, timeUsed: undefined, usedHints: undefined, notes: undefined }}
         onSaved={onSaved}
@@ -197,7 +204,7 @@ describe('<SolveDetail>', () => {
 
   it('validates solve time input when adding details', async () => {
     const user = userEvent.setup();
-    render(
+    renderWithRouter(
       <SolveDetail
         solve={{ ...baseSolve, timeUsed: undefined, usedHints: undefined, notes: undefined }}
         onSaved={onSaved}
@@ -225,7 +232,7 @@ describe('<SolveDetail>', () => {
   it('handles save failure gracefully for solve details', async () => {
     saveSolve.mockRejectedValue(new Error('Save failed'));
     const user = userEvent.setup();
-    render(
+    renderWithRouter(
       <SolveDetail
         solve={{ ...baseSolve, timeUsed: undefined, usedHints: undefined, notes: undefined }}
         onSaved={onSaved}
@@ -252,7 +259,7 @@ describe('<SolveDetail>', () => {
 
   it('allows adding feedback with final score', async () => {
     const user = userEvent.setup();
-    render(
+    renderWithRouter(
       <SolveDetail
         solve={{
           ...baseSolve,
@@ -341,7 +348,7 @@ describe('<SolveDetail>', () => {
 
   it('validates feedback input when adding feedback', async () => {
     const user = userEvent.setup();
-    render(
+    renderWithRouter(
       <SolveDetail
         solve={{
           ...baseSolve,
@@ -371,7 +378,7 @@ describe('<SolveDetail>', () => {
   it('handles save failure gracefully for feedback', async () => {
     saveSolve.mockRejectedValue(new Error('Save failed'));
     const user = userEvent.setup();
-    render(
+    renderWithRouter(
       <SolveDetail
         solve={{
           ...baseSolve,
@@ -448,7 +455,7 @@ describe('<SolveDetail>', () => {
         writable: true,
       });
 
-      render(
+      renderWithRouter(
         <SolveDetail
           solve={testSolve}
           onSaved={onSaved}
@@ -494,7 +501,7 @@ describe('<SolveDetail>', () => {
         writable: true,
       });
 
-      render(
+      renderWithRouter(
         <SolveDetail
           solve={baseSolve}
           onSaved={onSaved}
@@ -531,7 +538,7 @@ describe('<SolveDetail>', () => {
         writable: true,
       });
 
-      render(
+      renderWithRouter(
         <SolveDetail
           solve={baseSolve}
           onSaved={onSaved}
@@ -579,7 +586,7 @@ describe('<SolveDetail>', () => {
         writable: true,
       });
 
-      render(
+      renderWithRouter(
         <SolveDetail
           solve={baseSolve}
           onSaved={onSaved}
@@ -622,7 +629,7 @@ describe('<SolveDetail>', () => {
         writable: true,
       });
 
-      render(
+      renderWithRouter(
         <SolveDetail
           solve={baseSolve}
           onSaved={onSaved}
@@ -653,7 +660,7 @@ describe('<SolveDetail>', () => {
         writable: true,
       });
 
-      render(
+      renderWithRouter(
         <SolveDetail
           solve={baseSolve}
           onSaved={onSaved}
@@ -698,7 +705,7 @@ describe('<SolveDetail>', () => {
         writable: true,
       });
 
-      render(
+      renderWithRouter(
         <SolveDetail
           solve={baseSolve}
           onSaved={onSaved}
@@ -757,7 +764,7 @@ describe('<SolveDetail>', () => {
         writable: true,
       });
 
-      render(
+      renderWithRouter(
         <SolveDetail
           solve={baseSolve}
           onSaved={onSaved}
@@ -786,7 +793,7 @@ describe('<SolveDetail>', () => {
     it('validates manual feedback entry with consistent requirements', async () => {
       const user = userEvent.setup();
 
-      render(
+      renderWithRouter(
         <SolveDetail
           solve={baseSolve}
           onSaved={onSaved}
@@ -861,7 +868,7 @@ describe('<SolveDetail>', () => {
         writable: true,
       });
 
-      render(
+      renderWithRouter(
         <SolveDetail
           solve={baseSolve}
           onSaved={onSaved}
@@ -894,7 +901,7 @@ describe('<SolveDetail>', () => {
         writable: true,
       });
 
-      render(
+      renderWithRouter(
         <SolveDetail
           solve={baseSolve}
           onSaved={onSaved}
@@ -936,7 +943,7 @@ describe('<SolveDetail>', () => {
         writable: true,
       });
 
-      render(
+      renderWithRouter(
         <SolveDetail
           solve={baseSolve}
           onSaved={onSaved}
@@ -980,7 +987,7 @@ describe('<SolveDetail>', () => {
         writable: true,
       });
 
-      render(
+      renderWithRouter(
         <SolveDetail
           solve={baseSolve}
           onSaved={onSaved}
@@ -1018,7 +1025,7 @@ describe('<SolveDetail>', () => {
         configurable: true,
       });
 
-      render(
+      renderWithRouter(
         <SolveDetail
           solve={baseSolve}
           onSaved={onSaved}
@@ -1054,7 +1061,7 @@ describe('<SolveDetail>', () => {
         writable: true,
       });
 
-      render(
+      renderWithRouter(
         <SolveDetail
           solve={baseSolve}
           onSaved={onSaved}

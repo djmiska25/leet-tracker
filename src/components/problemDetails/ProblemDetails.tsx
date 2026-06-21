@@ -1,64 +1,69 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import SolveSidebar from './SolveSidebar';
-import SolveDetail from './SolveDetail';
-import { useSolveHistory } from '@/hooks/useSolveHistory';
-import type { Solve } from '@/types/types';
-
-/** Stable composite key for a solve */
-const solveId = (s: Solve) => `${s.slug}|${s.timestamp}`;
+import { useProblemDetails } from '@/hooks/useProblemDetails';
+import type { ProblemWithSubmissions, ProblemFilters } from '@/domain/problemDetails';
+import ProblemSidebar from './ProblemSidebar';
+import ProblemDetailView from './ProblemDetailView';
 
 interface Props {
-  activeSolveId?: string;
+  activeSlug?: string;
 }
 
-export default function SolveHistory({ activeSolveId }: Props) {
+export default function ProblemDetails({ activeSlug }: Props) {
   const navigate = useNavigate();
-  const { loading, solves, refresh } = useSolveHistory();
+
+  /* ---------- Filter state ---------- */
+  const [filters, setFilters] = useState<ProblemFilters>({
+    category: 'All',
+    difficulty: 'all',
+    hintsUsed: 'all',
+    scoreComparison: 'greater',
+    scoreThreshold: undefined,
+    includeNoFeedback: true,
+  });
+
+  const { loading, problems, allProblems } = useProblemDetails(filters);
 
   /* ---------- UI state ---------- */
   const [sidebarOpen, setSidebarOpen] = useState(true); // desktop (≥ sm)
   const [mobileView, setMobileView] = useState<'listing' | 'details'>('listing'); // < sm
-  const [selected, setSelected] = useState<Solve | null>(null);
+  const [selected, setSelected] = useState<ProblemWithSubmissions | null>(null);
 
-  /* Sync the selected solve reference when the solves list updates or URL param changes */
+  /* Sync the selected problem when the problems list updates or URL param changes */
   useEffect(() => {
-    if (loading || !solves.length) return;
+    if (loading || !problems.length) return;
 
-    if (activeSolveId) {
+    if (activeSlug) {
       // URL dictates selection
-      const decodedId = decodeURIComponent(activeSolveId);
-      const match = solves.find((s) => solveId(s) === decodedId);
+      const decodedSlug = decodeURIComponent(activeSlug);
+      const match = problems.find((p) => p.slug === decodedSlug);
       if (match) {
         if (match !== selected) {
           setSelected(match);
         }
       } else {
-        // ID in URL not found -> invalid link? clear it.
-        // But only if we are done loading
-        navigate('/solve-history', { replace: true });
+        // Slug in URL not found -> invalid link? clear it.
+        navigate('/problem-details', { replace: true });
       }
-    } else if (!selected && solves.length) {
+    } else if (!selected && problems.length) {
       // No URL param, and nothing selected -> default to most recent
-      setSelected(solves[0]);
+      setSelected(problems[0]);
     } else if (selected) {
       // If we have a selection, but no URL param, ensure selection is still valid in fresh list
-      const id = solveId(selected);
-      const fresh = solves.find((s) => solveId(s) === id);
+      const fresh = problems.find((p) => p.slug === selected.slug);
       if (fresh && fresh !== selected) {
         setSelected(fresh);
       }
     }
-  }, [solves, activeSolveId, loading, selected, navigate]);
+  }, [problems, activeSlug, loading, selected, navigate]);
 
   if (loading) return <p className="p-6">Loading…</p>;
-  if (!solves.length) return <p className="p-6">No solves found.</p>;
 
   /* ---------- handlers ---------- */
-  const selectSolve = (s: Solve) => {
+  const selectProblem = (p: ProblemWithSubmissions) => {
     // Navigate to URL; useEffect will handle setting 'selected'
-    const id = encodeURIComponent(solveId(s));
-    navigate(`/solve-history/${id}`);
+    const slug = encodeURIComponent(p.slug);
+    navigate(`/problem-details/${slug}`);
 
     if (window.innerWidth < 640) {
       setMobileView('details'); // take over full width on mobile
@@ -100,17 +105,19 @@ export default function SolveHistory({ activeSolveId }: Props) {
             ${mobileView === 'listing' ? 'basis-full opacity-100' : 'basis-0 opacity-0'}
             ${sidebarOpen ? 'sm:basis-[20rem] sm:flex-none sm:opacity-100' : 'sm:basis-0 sm:opacity-0'}
           `}
-          data-tour="solve-history-list"
         >
-          <SolveSidebar
-            solves={solves}
-            selectedId={selected ? solveId(selected) : null}
-            onSelect={selectSolve}
+          <ProblemSidebar
+            problems={problems}
+            allProblems={allProblems}
+            selectedSlug={selected?.slug ?? null}
+            onSelect={selectProblem}
             onHide={hideSidebar}
+            filters={filters}
+            onFiltersChange={setFilters}
           />
         </div>
 
-        {/* ───────── Detail Pane ───────── */}
+        {/* ───────── Detail View ───────── */}
         <div
           className={`overflow-hidden transition-all duration-300 ease-in-out
             ${mobileView === 'details' ? 'basis-full opacity-100' : 'basis-0 opacity-0'}
@@ -119,14 +126,13 @@ export default function SolveHistory({ activeSolveId }: Props) {
         >
           <div className="w-full max-w-4xl mx-auto h-full">
             {selected ? (
-              <SolveDetail
-                solve={selected}
-                onSaved={refresh}
+              <ProblemDetailView
+                problem={selected}
                 onShowList={showList}
                 showListButton={!listVisible}
               />
             ) : (
-              <p className="p-6 text-muted-foreground">Select a solve to view details.</p>
+              <p className="p-6 text-muted-foreground">Select a problem to view details.</p>
             )}
           </div>
         </div>

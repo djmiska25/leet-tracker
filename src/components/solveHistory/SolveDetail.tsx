@@ -1,5 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Edit, Save, X, Eye, EyeOff, Copy, Upload, HelpCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Calendar,
+  Edit,
+  Save,
+  X,
+  Eye,
+  EyeOff,
+  Copy,
+  Upload,
+  HelpCircle,
+  ExternalLink,
+  ArrowRight,
+  ChevronRight,
+} from 'lucide-react';
 import { Tooltip } from 'react-tooltip';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -833,29 +847,62 @@ export default function SolveDetail({ solve, onSaved, onShowList, showListButton
   /*  Render component                                  */
   /* -------------------------------------------------- */
 
+  const navigate = useNavigate();
+
+  const handleNavigateToProblem = () => {
+    navigate(`/problem-details/${encodeURIComponent(solve.slug)}`);
+  };
+
   return (
-    <Card className="h-full" data-tour="solve-detail">
-      <CardHeader className="p-4 pb-2">
+    <Card className="h-full flex flex-col" data-tour="solve-detail">
+      <CardHeader className="p-4 pb-2 shrink-0">
         <div className="flex items-start justify-between">
           <div>
-            <CardTitle className="text-xl">{solve.title}</CardTitle>
+            <button
+              onClick={handleNavigateToProblem}
+              className="flex items-center gap-2 group cursor-pointer bg-transparent border-0 p-0 text-left"
+              aria-label="View problem details"
+            >
+              <CardTitle className="text-xl underline decoration-muted-foreground/30 group-hover:decoration-foreground transition-colors">
+                {solve.title}
+              </CardTitle>
+              <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+            </button>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">{timeText}</span>
               <StatusBadge status={solve.status} />
             </div>
           </div>
-          {showListButton && (
-            <Button variant="outline" size="sm" onClick={onShowList} className="gap-2">
-              <Eye className="h-4 w-4" />
-              Show List
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {solve.submissionId && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-muted-foreground hover:text-foreground"
+                onClick={() =>
+                  window.open(
+                    `https://leetcode.com/problems/${solve.slug}/submissions/${solve.submissionId}/`,
+                    '_blank',
+                  )
+                }
+              >
+                <ExternalLink className="h-4 w-4" />
+                View on LeetCode
+              </Button>
+            )}
+            {showListButton && (
+              <Button variant="outline" size="sm" onClick={onShowList} className="gap-2">
+                <ChevronRight className="h-4 w-4 rotate-180" />
+                Show List
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
 
-      <CardContent className="p-4 pt-0">
-        <ScrollArea className="h-[calc(100vh-16rem)]">
+      <CardContent className="p-4 pt-0 flex-1 min-h-0">
+        <ScrollArea className="h-full">
           <div className="space-y-6">
             {/* -------- Code and Details Wrapper -------- */}
             <div data-tour="submission-details">
